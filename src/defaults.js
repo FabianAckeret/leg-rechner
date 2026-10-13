@@ -28,14 +28,24 @@ export const DEFAULT_LEG = {
 let nextId = 1;
 export const newId = () => `p${Date.now().toString(36)}${nextId++}`;
 
-// Fiktive Beispiel-Nachbarschaft
+export const STREET = 'Fluhmattstrasse';
+export const PLACE = '5222 Umiken';
+
+// Alle Adressen der Fluhmattstrasse gemäss amtlichem Gebäudeadressverzeichnis (geo.admin.ch).
+// Verbrauch, PV, Wärmepumpe und E-Auto sind BEISPIELWERTE (beispiel: true), bis jemand echte Werte erfasst.
+const ex = (nr, verbrauch, pv = 0, wp = false, ev = false) => ({
+  id: `fm-${nr}`, name: `${STREET} ${nr}`, verbrauch, pv, wp, ev, beispiel: true,
+});
 export const SAMPLE_PARTICIPANTS = [
-  { id: 'a', name: 'Haus A', verbrauch: 4500, pv: 10, wp: false, ev: false },
-  { id: 'b', name: 'Haus B', verbrauch: 9500, pv: 15, wp: true, ev: false },
-  { id: 'c', name: 'Haus C', verbrauch: 6500, pv: 8, wp: false, ev: true },
-  { id: 'd', name: 'Haus D', verbrauch: 4500, pv: 0, wp: false, ev: false },
-  { id: 'e', name: 'Haus E', verbrauch: 3500, pv: 0, wp: false, ev: false },
-  { id: 'f', name: 'Haus F', verbrauch: 8000, pv: 0, wp: true, ev: false },
-  { id: 'g', name: 'Wohnung G', verbrauch: 2500, pv: 0, wp: false, ev: false },
-  { id: 'h', name: 'Haus H', verbrauch: 6000, pv: 0, wp: false, ev: true },
+  ex('1a', 4000), ex('1b', 3800, 0, false, true), ex('1c', 4200, 8), ex('1d', 3600),
+  ex('1e', 4400), ex('1f', 4000),
+  ex('3', 6500, 10, true), ex('5', 5200), ex('6', 9000, 15, true),
+  ex('8', 4500), ex('10', 6000, 0, false, true), ex('12', 5500, 9),
+  ex('14', 8000, 0, true), ex('16', 4800), ex('16.1', 2500), ex('18', 7000, 12, false, true),
 ];
+
+// Kurzer Name für enge Darstellungen (z. B. «1a» statt «Fluhmattstrasse 1a»)
+export const shortName = (name) => {
+  const m = String(name).match(/(\d+[\w.]*)\s*$/);
+  return m ? m[1] : String(name).slice(0, 8);
+};

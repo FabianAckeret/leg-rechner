@@ -10,7 +10,7 @@ const PAGES = [
   { id: 'animation', label: 'Animation' },
   { id: 'rechner', label: 'Rechner' },
 ];
-const STORE = 'leg-rechner-v1';
+const STORE = 'leg-rechner-v2';
 
 function load() {
   try {
@@ -47,7 +47,8 @@ export default function App() {
     } catch { /* ignorieren */ }
   }, [participants, tariff, leg]);
 
-  const result = useMemo(() => simulate(participants, tariff, leg, { hourly: true }), [participants, tariff, leg]);
+  const active = useMemo(() => participants.filter((p) => p.aktiv !== false), [participants]);
+  const result = useMemo(() => simulate(active, tariff, leg, { hourly: true }), [active, tariff, leg]);
 
   const go = (id) => {
     setPage(id);
@@ -61,7 +62,7 @@ export default function App() {
     setLeg(DEFAULT_LEG);
   };
 
-  const usesSample = participants.every((p) => !p.data);
+  const usesSample = participants.some((p) => p.beispiel && p.aktiv !== false);
 
   return (
     <div className="app">
@@ -70,7 +71,7 @@ export default function App() {
           <span className="sun-dot" aria-hidden />
           <div>
             <div className="brand-title">Quartierstrom</div>
-            <div className="brand-sub">LEG-Rechner für unsere Nachbarschaft</div>
+            <div className="brand-sub">Fluhmattstrasse · 5222 Umiken</div>
           </div>
         </div>
         <nav className="tabs" aria-label="Seiten">
@@ -84,14 +85,14 @@ export default function App() {
 
       {usesSample && (
         <div className="banner">
-          Berechnet mit <strong>Beispieldaten</strong> (fiktive Häuser, simulierte Profile). Eigene Werte im{' '}
+          Adressen der Fluhmattstrasse sind echt, Verbrauch und PV-Anlagen aber noch <strong>Beispielwerte</strong>. Echte Angaben im{' '}
           <button className="link" onClick={() => go('rechner')}>Rechner</button> erfassen.
         </div>
       )}
 
       <main>
         {page === 'erklaerung' && <Explain tariff={tariff} leg={leg} result={result} go={go} />}
-        {page === 'animation' && <Animation participants={participants} result={result} tariff={tariff} leg={leg} />}
+        {page === 'animation' && <Animation participants={active} result={result} tariff={tariff} leg={leg} />}
         {page === 'rechner' && (
           <Calculator
             participants={participants} setParticipants={setParticipants}

@@ -41,26 +41,30 @@ function ParticipantCard({ p, update, remove }) {
       const parsed = parseCsv(await f.text());
       const data = { load: parsed.load, pv: parsed.pv ?? undefined };
       const verbrauch = Math.round(parsed.load.reduce((a, b) => a + b, 0));
-      update({ data: { ...data, file: f.name }, verbrauch });
+      set({ data: { ...data, file: f.name }, verbrauch });
       setMsg(`${f.name}: ${num(parsed.rows)} Werte (${parsed.resolution}) geladen.`);
     } catch (err) {
       setMsg(`Fehler: ${err.message}`);
     }
     e.target.value = '';
   };
+  const off = p.aktiv === false;
+  const set = (patch) => update({ ...patch, beispiel: false });
   return (
-    <div className="pcard">
+    <div className={off ? 'pcard off' : 'pcard'}>
       <div className="pcard-top">
-        <input className="pname" value={p.name} onChange={(e) => update({ name: e.target.value })} aria-label="Name" />
+        <input className="pname" value={p.name} onChange={(e) => update({ name: e.target.value })} aria-label="Adresse oder Name" />
+        <Toggle label={off ? 'Macht nicht mit' : 'Macht mit'} checked={!off} onChange={(v) => update({ aktiv: v })} />
         <button className="icon-btn" onClick={remove} aria-label={`${p.name} entfernen`}>✕</button>
       </div>
+      {p.beispiel && !off && <div className="pcard-chip">Beispielwerte – bitte echte Angaben erfassen</div>}
       <div className="pcard-grid">
-        <NumField label="Verbrauch" unit="kWh/Jahr" step={100} value={p.verbrauch} onChange={(v) => update({ verbrauch: v })} />
-        <NumField label="PV-Anlage" unit="kWp" step={0.5} value={p.pv} onChange={(v) => update({ pv: v })} />
+        <NumField label="Verbrauch" unit="kWh/Jahr" step={100} value={p.verbrauch} onChange={(v) => set({ verbrauch: v })} />
+        <NumField label="PV-Anlage" unit="kWp" step={0.5} value={p.pv} onChange={(v) => set({ pv: v })} />
       </div>
       <div className="pcard-row">
-        <Toggle label="Wärmepumpe" checked={p.wp} onChange={(v) => update({ wp: v })} />
-        <Toggle label="E-Auto" checked={p.ev} onChange={(v) => update({ ev: v })} />
+        <Toggle label="Wärmepumpe" checked={p.wp} onChange={(v) => set({ wp: v })} />
+        <Toggle label="E-Auto" checked={p.ev} onChange={(v) => set({ ev: v })} />
         {p.data ? (
           <button className="link small" onClick={() => { update({ data: undefined }); setMsg(''); }}>Messdaten entfernen</button>
         ) : (
@@ -95,7 +99,7 @@ export default function Calculator({ participants, setParticipants, tariff, setT
   const [confirmReset, setConfirmReset] = useState(false);
   const up = (id) => (patch) => setParticipants((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const rm = (id) => () => setParticipants((ps) => ps.filter((p) => p.id !== id));
-  const add = () => setParticipants((ps) => [...ps, { id: newId(), name: `Haus ${String.fromCharCode(65 + ps.length)}`, verbrauch: 4500, pv: 0, wp: false, ev: false }]);
+  const add = () => setParticipants((ps) => [...ps, { id: newId(), name: 'Neue Adresse', verbrauch: 4500, pv: 0, wp: false, ev: false }]);
   const T = (k) => (v) => setTariff((t) => ({ ...t, [k]: v }));
   const L = (k) => (v) => setLeg((l) => ({ ...l, [k]: v }));
 
@@ -128,7 +132,7 @@ export default function Calculator({ participants, setParticipants, tariff, setT
         {participants.map((p) => <ParticipantCard key={p.id} p={p} update={up(p.id)} remove={rm(p.id)} />)}
       </div>
       <div className="row-actions">
-        <button className="btn" onClick={add}>+ Haus hinzufügen</button>
+        <button className="btn" onClick={add}>+ Adresse hinzufügen</button>
         <button className="btn ghost" onClick={downloadTemplate}>CSV-Vorlage</button>
         {confirmReset ? (
           <button className="btn danger" onClick={() => { reset(); setConfirmReset(false); }}>Wirklich zurücksetzen?</button>

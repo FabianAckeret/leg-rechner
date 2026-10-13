@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { legBezugPreis, netzbezugPreis, pickDay } from '../engine.js';
 import { chf, kw, num } from '../format.js';
+import { shortName } from '../defaults.js';
 
 const SEASONS = [
   { id: 'sommer', label: 'Sommertag', target: 172, daylen: 15.8 },
@@ -9,7 +10,7 @@ const SEASONS = [
   { id: 'winter', label: 'Wintertag', target: 352, daylen: 8.6 },
 ];
 
-const W = 360, H = 385, STREET = 262, TRAFO_X = 318;
+const H = 385, STREET = 262;
 
 const lerp = (a, b, f) => a + (b - a) * f;
 const mix = (c1, c2, f) => {
@@ -106,6 +107,8 @@ export default function Animation({ participants, result, tariff, leg }) {
 
   // Geometrie
   const cols = Math.max(1, Math.ceil(n / 2));
+  const W = Math.max(360, 30 + cols * 44 + 56);
+  const TRAFO_X = W - 42;
   const span = TRAFO_X - 30;
   const cw = span / cols;
   const hw = Math.min(58, cw - 10);
@@ -118,7 +121,7 @@ export default function Animation({ participants, result, tariff, leg }) {
   const sky = skyColor(t, season.daylen);
   const sunF = (t - 12.6) / (season.daylen / 2);
   const sunUp = Math.abs(sunF) < 1.05;
-  const sunX = W / 2 + sunF * 150;
+  const sunX = W / 2 + sunF * W * 0.42;
   const sunY = 92 - Math.cos(Math.max(-1, Math.min(1, sunF)) * Math.PI / 2) * 62;
   const hh = Math.floor(t), mm = Math.floor((t - hh) * 60 / 15) * 15;
   const clock = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -159,8 +162,8 @@ export default function Animation({ participants, result, tariff, leg }) {
             </g>
           ) : (
             <g>
-              <circle cx="300" cy="46" r="12" fill="#e9ecf5" />
-              <circle cx="306" cy="42" r="11" fill={sky.top} />
+              <circle cx={W - 60} cy="46" r="12" fill="#e9ecf5" />
+              <circle cx={W - 54} cy="42" r="11" fill={sky.top} />
               {[40, 90, 150, 220, 250].map((x, i) => <circle key={x} cx={x} cy={30 + (i % 3) * 18} r="1.2" fill="#fff" opacity="0.7" />)}
             </g>
           )}
@@ -209,7 +212,7 @@ export default function Animation({ participants, result, tariff, leg }) {
                   <rect y={houseTop} width={hw} height={bodyH} rx="2" className={isSel ? 'body sel' : 'body'} />
                   <rect x={hw * 0.18} y={houseTop + 10} width="9" height="9" rx="1.5" fill={night && h.load > 0.25 ? '#ffd76a' : 'var(--window)'} />
                   <rect x={hw * 0.82 - 9} y={houseTop + 10} width="9" height="9" rx="1.5" fill={night && h.load > 0.6 ? '#ffd76a' : 'var(--window)'} />
-                  <text x={hw / 2} y={top ? roofY - 6 : houseTop + bodyH + 13} textAnchor="middle" className="house-name" style={top ? { fill: night ? '#fff' : '#13213a', stroke: 'none' } : undefined}>{h.p.name}</text>
+                  <text x={hw / 2} y={top ? roofY - 6 : houseTop + bodyH + 13} textAnchor="middle" className="house-name" style={top ? { fill: night ? '#fff' : '#13213a', stroke: 'none' } : undefined}>{shortName(h.p.name)}</text>
                   <text x={hw / 2} y={houseTop + 33} textAnchor="middle" className="house-kw">{num(h.load, 1)} kW</text>
                 </g>
               </g>

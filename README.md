@@ -1,10 +1,12 @@
 # Quartierstrom – LEG-Rechner
 
-Web-App, mit der unsere Nachbarschaft prüfen kann, ob sich eine **Lokale Elektrizitätsgemeinschaft (LEG)** lohnt.
+Web-App, mit der die Nachbarschaft an der Fluhmattstrasse in 5222 Umiken prüfen kann, ob sich eine **Lokale Elektrizitätsgemeinschaft (LEG)** lohnt.
 
 - **So funktioniert’s:** Erklärseite – was eine LEG ist, warum nicht vZEV, wie der Strom verteilt wird, was eine kWh kostet, wer profitiert.
 - **Animation:** Ein Sommer-, Frühlings- oder Wintertag im Quartier mit animierten Energieflüssen (Eigenverbrauch → Nachbarn → IBB).
 - **Rechner:** Teilnehmende, Tarife und LEG-Kosten erfassen; Simulation über alle 8760 Stunden eines Jahres, Ergebnis pro Haus.
+
+Vorerfasst sind alle Adressen der Fluhmattstrasse gemäss amtlichem Gebäudeadressverzeichnis (geo.admin.ch) mit Beispielwerten für Verbrauch und PV. Weitere Adressen lassen sich hinzufügen, nicht teilnehmende Häuser ausschalten.
 
 Alles läuft im Browser. Eingaben werden lokal gespeichert (localStorage), Messdaten-Dateien verlassen den Browser nicht.
 
