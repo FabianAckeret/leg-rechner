@@ -92,6 +92,7 @@ function downloadTemplate() {
 
 export default function Calculator({ participants, setParticipants, tariff, setTariff, leg, setLeg, result, reset }) {
   const { rows, summary: s, monthly } = result;
+  const [confirmReset, setConfirmReset] = useState(false);
   const up = (id) => (patch) => setParticipants((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const rm = (id) => () => setParticipants((ps) => ps.filter((p) => p.id !== id));
   const add = () => setParticipants((ps) => [...ps, { id: newId(), name: `Haus ${String.fromCharCode(65 + ps.length)}`, verbrauch: 4500, pv: 0, wp: false, ev: false }]);
@@ -129,7 +130,11 @@ export default function Calculator({ participants, setParticipants, tariff, setT
       <div className="row-actions">
         <button className="btn" onClick={add}>+ Haus hinzufügen</button>
         <button className="btn ghost" onClick={downloadTemplate}>CSV-Vorlage</button>
-        <button className="btn ghost" onClick={() => { if (confirm('Alles auf die Beispieldaten zurücksetzen?')) reset(); }}>Zurücksetzen</button>
+        {confirmReset ? (
+          <button className="btn danger" onClick={() => { reset(); setConfirmReset(false); }}>Wirklich zurücksetzen?</button>
+        ) : (
+          <button className="btn ghost" onClick={() => setConfirmReset(true)}>Zurücksetzen</button>
+        )}
       </div>
       <p className="hint">
         Messdaten: Export aus dem IBB-Kundenportal (15-Minuten- oder Stundenwerte eines Jahres). Spalten: Zeitpunkt; Verbrauch kWh; Produktion kWh.
