@@ -134,7 +134,7 @@ main { padding-top: 8px; }
 .svg-house.prod { stroke: var(--sun); }
 .svg-house.cons { stroke: var(--grid); }
 .svg-pool { fill: color-mix(in srgb, var(--leg) 14%, var(--card)); stroke: var(--leg); stroke-width: 1.5; }
-.svg-flow { fill: none; stroke-width: 3; stroke-dasharray: 5 5; animation: dash 1s linear infinite; }
+.svg-flow { fill: none; stroke-width: 3; stroke-dasharray: 6 7; animation: dash 1s linear infinite; }
 .svg-flow.leg { stroke: var(--leg); }
 .svg-flow.grid { stroke: var(--grid); }
 
@@ -183,7 +183,7 @@ details p { margin: 8px 0 2px; color: var(--ink-2); }
 .flow.leg { stroke: var(--leg); }
 .flow.imp { stroke: var(--grid); }
 .flow.exp { stroke: var(--sun-deep); }
-.flow.bus { animation-duration: 2.2s; stroke-dasharray: 2 10; }
+.flow.bus { animation-duration: 2.2s; stroke-dasharray: 2 11; }
 @keyframes dash { to { stroke-dashoffset: -13; } }
 @media (prefers-reduced-motion: reduce) { .flow, .svg-flow { animation: none; } }
 
