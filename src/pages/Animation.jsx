@@ -132,7 +132,7 @@ export default function Animation({ participants, result, tariff, leg }) {
     <div className="anim">
       <div className="anim-head">
         <h1>Ein Tag im Quartier</h1>
-        <p className="lead">Tippe auf ein Haus, um seine Werte zu sehen. Die Linien zeigen, wohin der Strom gerade fliesst.</p>
+        <p className="lead">Tippe auf ein Haus, um seine Werte zu sehen. Die Linien zeigen, wohin der Strom gerade fliesst. Die Häuser sind ein Beispiel mit erfundenen Werten.</p>
       </div>
 
       <div className="seg" role="tablist">
@@ -274,7 +274,7 @@ export default function Animation({ participants, result, tariff, leg }) {
           <ComposedChart data={dayData} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
             <XAxis dataKey="h" type="number" domain={[0, 24]} ticks={[0, 6, 12, 18, 24]} tickFormatter={(v) => `${v}h`} tick={{ fontSize: 11, fill: 'var(--ink-2)' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: 'var(--ink-2)' }} axisLine={false} tickLine={false} />
-            <Tooltip labelFormatter={(v) => `${Math.floor(v)}–${Math.floor(v) + 1} Uhr`} formatter={(v, name) => [`${num(v, 1)} kW`, name]} contentStyle={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13 }} />
+            <Tooltip labelFormatter={(v) => `${Math.floor(v)}–${Math.floor(v) + 1} Uhr`} formatter={(v, name) => [`${num(v, 1)} kW`, name]} contentStyle={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13, color: 'var(--ink)' }} />
             <Area type="monotone" dataKey="eigen" name="Eigenverbrauch" stackId="1" stroke="none" fill="var(--sun)" fillOpacity={0.85} />
             <Area type="monotone" dataKey="leg" name="Aus der LEG" stackId="1" stroke="none" fill="var(--leg)" fillOpacity={0.85} />
             <Area type="monotone" dataKey="netz" name="Von der IBB" stackId="1" stroke="none" fill="var(--grid)" fillOpacity={0.55} />

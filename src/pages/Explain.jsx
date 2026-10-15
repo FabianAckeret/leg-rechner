@@ -104,7 +104,7 @@ function PriceStack({ tariff, leg }) {
         <BarChart data={data} layout="vertical" margin={{ top: 4, right: 48, bottom: 4, left: 0 }}>
           <XAxis type="number" hide domain={[0, 'dataMax']} />
           <YAxis type="category" dataKey="name" width={92} tick={{ fontSize: 12, fill: 'var(--ink-2)' }} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(v, n) => [`${fmt(v)} Rp.`, n]} cursor={{ fill: 'var(--hover)' }} contentStyle={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13 }} />
+          <Tooltip formatter={(v, n) => [`${fmt(v)} Rp.`, n]} cursor={{ fill: 'var(--hover)' }} contentStyle={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13, color: 'var(--ink)' }} />
           <Bar dataKey="energie" name="Energie" stackId="a" fill="var(--sun)" radius={[6, 0, 0, 6]} />
           <Bar dataKey="netz" name="Netznutzung" stackId="a" fill="var(--grid)" />
           <Bar dataKey="abgaben" name="Abgaben" stackId="a" fill="var(--muted-bar)" radius={[0, 6, 6, 0]}>

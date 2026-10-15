@@ -1,17 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_LEG, DEFAULT_TARIFF, SAMPLE_PARTICIPANTS } from './defaults.js';
 import { simulate } from './engine.js';
-import { fetchOwn, fetchPublic, forgetToken, readToken, saveOwn } from './api.js';
+import { clearOwn, fetchOwn, fetchResult, forgetToken, readToken, saveOwn } from './api.js';
 import Explain from './pages/Explain.jsx';
 import Animation from './pages/Animation.jsx';
 import Calculator from './pages/Calculator.jsx';
+import Privacy from './pages/Privacy.jsx';
 
 const PAGES = [
   { id: 'erklaerung', label: 'So funktioniert’s' },
   { id: 'animation', label: 'Animation' },
   { id: 'rechner', label: 'Rechner' },
 ];
+// Seiten, die über Links erreichbar sind, aber nicht in der Navigation stehen
+const HIDDEN = ['datenschutz'];
+const known = (h) => PAGES.some((p) => p.id === h) || HIDDEN.includes(h);
 const STORE = 'leg-rechner-v3';
+
+// Die Animation zeigt erfundene Beispielhäuser, nie echte Angaben
+const EXAMPLES = SAMPLE_PARTICIPANTS.map((p, i) => ({ ...p, name: `Haus ${String.fromCharCode(65 + i)}` }));
 
 function load() {
   try {
@@ -21,11 +28,9 @@ function load() {
   return null;
 }
 
-const sampleFor = (id) => SAMPLE_PARTICIPANTS.find((s) => s.id === id);
-
 // Eigene Angaben als Formularwerte; fehlen sie, dienen die Beispielwerte als Ausgangspunkt
-export function draftFrom(own) {
-  const s = sampleFor(own.id) ?? { verbrauch: 4500, pv: 0, wp: false, ev: false };
+function draftFrom(own) {
+  const s = SAMPLE_PARTICIPANTS.find((p) => p.id === own.id) ?? { verbrauch: 4500, pv: 0, wp: false, ev: false };
   const has = own.verbrauch != null;
   return {
     status: own.status,
@@ -37,65 +42,53 @@ export function draftFrom(own) {
   };
 }
 
-// Teilnehmende für die Simulation: eigenes Haus, anonymisierte Zusagen, offene Adressen mit Beispielwerten
-function buildParticipants(community, own, draft, ownData, includeOpen) {
-  if (!community) return SAMPLE_PARTICIPANTS;
-  const list = [];
-  if (own && draft.status !== 'nein') {
-    list.push({ id: own.id, name: own.address, verbrauch: draft.verbrauch, pv: draft.pv, wp: draft.wp, ev: draft.ev, beispiel: draft.beispiel, own: true, data: ownData });
-  }
-  // Stabile Reihenfolge, damit «Haus A» beim nächsten Laden dasselbe Haus bleibt
-  const values = [...community.values].sort((a, b) => a.verbrauch - b.verbrauch || a.pv - b.pv);
-  values.forEach((v, i) => list.push({
-    id: `anon-${i}`, name: `Haus ${String.fromCharCode(65 + i)}`, verbrauch: +v.verbrauch, pv: +v.pv || 0, wp: v.wp, ev: v.ev,
-  }));
-  if (includeOpen) {
-    for (const h of community.households) {
-      if (h.status === 'offen' && h.id !== own?.id && sampleFor(h.id)) list.push(sampleFor(h.id));
-    }
-  }
-  return list;
-}
-
 export default function App() {
   const saved = useMemo(load, []);
   const [page, setPage] = useState(() => {
     const h = location.hash.replace('#', '');
-    return PAGES.some((p) => p.id === h) ? h : 'erklaerung';
+    return known(h) ? h : 'erklaerung';
   });
   const [tariff, setTariff] = useState({ ...DEFAULT_TARIFF, ...(saved?.tariff ?? {}) });
   const [leg, setLeg] = useState({ ...DEFAULT_LEG, ...(saved?.leg ?? {}) });
   const [includeOpen, setIncludeOpen] = useState(saved?.includeOpen ?? true);
 
   const [token, setToken] = useState(readToken);
-  const [community, setCommunity] = useState(null);
-  const [net, setNet] = useState('loading'); // loading | ok | offline
   const [own, setOwn] = useState(null);
   const [badLink, setBadLink] = useState(false);
   const [draft, setDraft] = useState(null);
   const [ownData, setOwnData] = useState(undefined); // Messdaten nur in dieser Sitzung
 
-  const refresh = useCallback(async () => {
-    try {
-      const [pub, mine] = await Promise.all([fetchPublic(token), token ? fetchOwn(token) : null]);
-      setCommunity(pub);
-      setNet('ok');
-      if (token) {
+  const [server, setServer] = useState(null);
+  const [net, setNet] = useState('loading'); // loading | ok | offline
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchOwn(token)
+      .then((mine) => {
         setBadLink(!mine);
         setOwn(mine);
-        setDraft((d) => d ?? (mine ? draftFrom(mine) : null));
-      }
-    } catch {
-      setNet('offline');
-    }
+        setDraft(mine ? draftFrom(mine) : null);
+      })
+      .catch(() => setNet('offline'));
   }, [token]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  // Ergebnis vom Server; kurz warten, damit nicht jeder Tastendruck eine Anfrage auslöst
+  useEffect(() => {
+    if (token && !own && !badLink) return undefined; // eigenes Haus wird noch geladen
+    const ctrl = new AbortController();
+    const id = setTimeout(() => {
+      fetchResult({ token: own ? token : null, draft: own ? draft : null, ownData, tariff, leg, includeOpen }, ctrl.signal)
+        .then((r) => { setServer(r); setNet('ok'); })
+        .catch((e) => { if (e.name !== 'AbortError') setNet('offline'); });
+    }, 350);
+    return () => { clearTimeout(id); ctrl.abort(); };
+  }, [token, own, badLink, draft, ownData, tariff, leg, includeOpen, retry]);
 
   useEffect(() => {
     const onHash = () => {
       const h = location.hash.replace('#', '');
-      if (PAGES.some((p) => p.id === h)) setPage(h);
+      if (known(h)) setPage(h);
     };
     addEventListener('hashchange', onHash);
     return () => removeEventListener('hashchange', onHash);
@@ -107,18 +100,21 @@ export default function App() {
     } catch { /* ignorieren */ }
   }, [tariff, leg, includeOpen]);
 
-  const participants = useMemo(
-    () => buildParticipants(community, own, draft, ownData, includeOpen),
-    [community, own, draft, ownData, includeOpen],
-  );
-  const result = useMemo(() => simulate(participants, tariff, leg, { hourly: true }), [participants, tariff, leg]);
+  const example = useMemo(() => simulate(EXAMPLES, tariff, leg, { hourly: true }), [tariff, leg]);
+  // Ohne Server rechnet die Seite mit den Beispielhäusern
+  const result = server && net !== 'offline' ? server : { summary: example.summary, monthly: example.monthly, own: null, counts: null };
 
-  const save = async () => {
-    const mine = await saveOwn(token, draft);
+  const save = async (consent) => {
+    const mine = await saveOwn(token, draft, consent);
     setOwn(mine);
     setDraft(draftFrom(mine));
-    const pub = await fetchPublic(token);
-    setCommunity(pub);
+  };
+
+  const clear = async () => {
+    const mine = await clearOwn(token);
+    setOwnData(undefined);
+    setOwn(mine);
+    setDraft(draftFrom(mine));
   };
 
   const logout = () => {
@@ -130,18 +126,16 @@ export default function App() {
     setBadLink(false);
   };
 
-  const go = (id) => {
+  const go = useCallback((id) => {
     setPage(id);
     history.replaceState(null, '', `${location.search}#${id}`);
     scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
   const reset = () => {
     setTariff(DEFAULT_TARIFF);
     setLeg(DEFAULT_LEG);
   };
-
-  const usesSample = participants.some((p) => p.beispiel);
 
   return (
     <div className="app">
@@ -164,8 +158,8 @@ export default function App() {
 
       {net === 'offline' && (
         <div className="banner">
-          Die gemeinsamen Angaben der Nachbarschaft lassen sich gerade nicht laden. Der Rechner zeigt Beispielwerte.{' '}
-          <button className="link" onClick={refresh}>Nochmals versuchen</button>
+          Die Angaben der Nachbarschaft lassen sich gerade nicht laden. Der Rechner zeigt Beispielwerte.{' '}
+          <button className="link" onClick={() => { setNet('loading'); setRetry((n) => n + 1); }}>Nochmals versuchen</button>
         </div>
       )}
       {badLink && (
@@ -174,36 +168,34 @@ export default function App() {
           <button className="link" onClick={logout}>Ohne Link weiter</button>
         </div>
       )}
-      {net === 'ok' && !badLink && usesSample && (
+      {net === 'ok' && !badLink && server && !server.usesReal && (
         <div className="banner">
-          Noch nicht alle Häuser haben ihre Angaben erfasst. Für offene Adressen rechnet der Rechner mit <strong>Beispielwerten</strong>.{' '}
-          {own ? (
-            <>Deine Angaben erfasst du im <button className="link" onClick={() => go('rechner')}>Rechner</button>.</>
-          ) : (
-            <>Mit deinem persönlichen Link erfasst du die Werte für dein Haus.</>
-          )}
+          Erst wenn mindestens {server.minOthers} Häuser ihre Angaben erfasst haben, rechnet der Rechner mit echten Werten.
+          Bis dahin zeigt er <strong>Beispielwerte</strong>.{' '}
+          {own && <>Deine Angaben erfasst du im <button className="link" onClick={() => go('rechner')}>Rechner</button>.</>}
         </div>
       )}
 
       <main>
         {page === 'erklaerung' && <Explain tariff={tariff} leg={leg} result={result} go={go} />}
-        {page === 'animation' && <Animation participants={participants} result={result} tariff={tariff} leg={leg} />}
+        {page === 'animation' && <Animation participants={EXAMPLES} result={example} tariff={tariff} leg={leg} />}
         {page === 'rechner' && (
           <Calculator
-            community={community} net={net} own={own} draft={draft} setDraft={setDraft}
-            ownData={ownData} setOwnData={setOwnData} save={save} logout={logout}
+            server={server} net={net} own={own} draft={draft} setDraft={setDraft}
+            ownData={ownData} setOwnData={setOwnData} save={save} clear={clear} logout={logout} go={go}
             includeOpen={includeOpen} setIncludeOpen={setIncludeOpen}
             tariff={tariff} setTariff={setTariff}
             leg={leg} setLeg={setLeg}
             result={result} reset={reset}
           />
         )}
+        {page === 'datenschutz' && <Privacy go={go} />}
       </main>
 
       <footer className="foot">
         Alle Angaben ohne Gewähr. Tarife: IBB Preisblatt «Strompreise Basis 2026» (exkl. MWST). Die Berechnung ist eine
-        Abschätzung und ersetzt keine Offerte der IBB. Angaben der Nachbarn erscheinen nur anonym («Haus A», «Haus B» …);
-        sichtbar sind nur Adresse und Teilnahme.
+        Abschätzung und ersetzt keine Offerte der IBB. Andere sehen von deinen Angaben nur Summen über mehrere Häuser.{' '}
+        <button className="link" onClick={() => go('datenschutz')}>Datenschutz</button>
       </footer>
     </div>
   );

@@ -12,9 +12,13 @@ Vorerfasst sind alle Adressen der Fluhmattstrasse gemäss amtlichem Gebäudeadre
 
 Jedes Haus erhält einen persönlichen Link (`…/leg-rechner/?key=<token>#rechner`). Damit erfasst es Teilnahme, Jahresverbrauch, PV-Leistung, Wärmepumpe und E-Auto. Die Angaben liegen in einer Supabase-Datenbank (Free Tier, Region Zürich, Projekt `leg-rechner`).
 
-- Öffentlich sichtbar sind nur Adresse und Teilnahme. Die Werte der anderen Häuser kommen ohne Adresse und in zufälliger Reihenfolge an und erscheinen als «Haus A», «Haus B» usw.
-- Schreiben geht nur über die Funktion `save_household` mit gültigem Token. Die Tabelle `households` ist für anonyme Zugriffe gesperrt (RLS ohne Policies).
-- Tarife und LEG-Einstellungen bleiben pro Browser (localStorage). Messdaten-Dateien verlassen den Browser nicht; gespeichert wird nur der Jahresverbrauch.
+- Die Berechnung läuft in der Edge Function `simulate` (`supabase/functions/simulate/index.ts`, nutzt `src/engine.js`). Der Browser erhält nur Summen über die Strasse (gerundet auf 1000 kWh und 10 CHF), die Anzahl Zusagen und mit Link das Ergebnis des eigenen Hauses.
+- Echte Angaben fliessen erst ein, wenn mindestens drei andere Häuser mitmachen. Bis dahin rechnet der Server mit Beispielwerten.
+- Speichern verlangt beim ersten Mal die Einwilligung zum Datenschutzhinweis (Seite `#datenschutz`). «Mache nicht mit» löscht die Werte, **Meine Angaben löschen** setzt das Haus ganz zurück.
+- Schreiben und Lesen des eigenen Hauses gehen nur über `save_household`, `get_household` und `clear_household` mit gültigem Token. Die Tabelle `households` ist für anonyme Zugriffe gesperrt (RLS ohne Policies).
+- Die Animation zeigt erfundene Beispielhäuser («Haus A», «Haus B» …), nie echte Angaben.
+- Tarife und LEG-Einstellungen bleiben pro Browser (localStorage). Messdaten-Dateien gehen nur zur Berechnung an den Server und werden nicht gespeichert.
+- Edge Function nach Änderungen an `src/engine.js`, `src/profiles.js` oder `src/defaults.js` neu deployen: `npx supabase functions deploy simulate --no-verify-jwt --project-ref rdrtyknlrihvyvsitkig`
 - Links neu auflisten: im Supabase SQL-Editor `select address, 'https://fabianackeret.github.io/leg-rechner/?key=' || edit_token || '#rechner' from households order by sort;`
 - Link eines Hauses ersetzen: `update households set edit_token = encode(extensions.gen_random_bytes(16), 'hex') where id = 'fm-6';`
 - Weitere Adresse: `insert into households (id, address, sort) values ('fm-20', 'Fluhmattstrasse 20', 17);`

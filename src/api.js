@@ -1,28 +1,37 @@
-// Gemeinsame Daten der Nachbarschaft (Supabase). Der Schlüssel ist öffentlich; die Datenbank
-// gibt nur Adressen, Status und anonymisierte Werte heraus. Schreiben geht nur mit dem persönlichen Link.
-const URL_BASE = 'https://rdrtyknlrihvyvsitkig.supabase.co/rest/v1/rpc/';
+// Gemeinsame Daten der Nachbarschaft (Supabase). Der Schlüssel ist öffentlich. Die Berechnung läuft
+// auf dem Server, der Browser erhält nur Summen und das eigene Ergebnis. Schreiben geht nur mit dem persönlichen Link.
+const BASE = 'https://rdrtyknlrihvyvsitkig.supabase.co';
 const KEY = 'sb_publishable_NpILcijR9NQv2Pel96WZDg_GoIvq1F7';
 
-async function rpc(name, body) {
-  const res = await fetch(URL_BASE + name, {
+async function post(url, body, signal) {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { apikey: KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal,
   });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || `Server antwortet mit ${res.status}`);
   return json;
 }
 
-// { households: [{id, address, status}], values: [{verbrauch, pv, wp, ev}] }
-export const fetchPublic = (token) => rpc('get_public', { p_token: token || null });
+const rpc = (name, body) => post(`${BASE}/rest/v1/rpc/${name}`, body);
+
+// { summary, monthly, own, counts: {ja, offen, nein}, participants, examples, usesReal, minOthers }
+export function fetchResult({ token, draft, ownData, tariff, leg, includeOpen }, signal) {
+  const data = ownData && { load: Array.from(ownData.load), pv: ownData.pv && Array.from(ownData.pv) };
+  return post(`${BASE}/functions/v1/simulate`, { token, own: draft, ownData: data, tariff, leg, includeOpen }, signal);
+}
 
 // Eigener Haushalt oder null, wenn der Link ungültig ist
 export const fetchOwn = (token) => rpc('get_household', { p_token: token });
 
-export const saveOwn = (token, h) => rpc('save_household', {
-  p_token: token, p_status: h.status, p_verbrauch: h.verbrauch, p_pv: h.pv, p_wp: h.wp, p_ev: h.ev,
+export const saveOwn = (token, h, consent) => rpc('save_household', {
+  p_token: token, p_status: h.status, p_verbrauch: h.verbrauch, p_pv: h.pv, p_wp: h.wp, p_ev: h.ev, p_consent: consent,
 });
+
+// Löscht alle gespeicherten Angaben des eigenen Hauses
+export const clearOwn = (token) => rpc('clear_household', { p_token: token });
 
 const TOKEN_STORE = 'leg-rechner-key';
 

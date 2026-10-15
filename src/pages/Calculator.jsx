@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { abgabenSumme, legBezugPreis, netzbezugPreis, parseCsv } from '../engine.js';
 import { chf, kwh, num, pct, rp } from '../format.js';
 
-const tip = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13 };
+const tip = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13, color: 'var(--ink)' };
 
 function NumField({ label, value, onChange, unit, step = 1, min = 0, hint }) {
   return (
@@ -35,13 +35,14 @@ const STATUS = [
   { id: 'offen', label: 'Noch unsicher' },
   { id: 'nein', label: 'Mache nicht mit' },
 ];
-const STATUS_LABEL = { ja: 'macht mit', offen: 'noch offen', nein: 'macht nicht mit' };
 
-function OwnCard({ own, draft, setDraft, ownData, setOwnData, save, logout }) {
+function OwnCard({ own, draft, setDraft, ownData, setOwnData, save, clear, logout, go }) {
   const fileRef = useRef();
   const [msg, setMsg] = useState('');
-  const [state, setState] = useState('idle'); // idle | saving | saved | error
+  const [state, setState] = useState('idle'); // idle | saving | saved | cleared | error
   const [err, setErr] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const set = (patch) => { setDraft((d) => ({ ...d, ...patch, beispiel: false })); setState('idle'); };
   const onFile = async (e) => {
     const f = e.target.files?.[0];
@@ -56,11 +57,11 @@ function OwnCard({ own, draft, setDraft, ownData, setOwnData, save, logout }) {
     }
     e.target.value = '';
   };
-  const onSave = async () => {
+  const run = async (action, done) => {
     setState('saving');
     try {
-      await save();
-      setState('saved');
+      await action();
+      setState(done);
     } catch (error) {
       setErr(error.message);
       setState('error');
@@ -69,6 +70,7 @@ function OwnCard({ own, draft, setDraft, ownData, setOwnData, save, logout }) {
   const dirty = draft.status !== own.status || own.verbrauch == null || draft.verbrauch !== +own.verbrauch
     || draft.pv !== (+own.pv || 0) || draft.wp !== own.wp || draft.ev !== own.ev;
   const off = draft.status === 'nein';
+  const needsConsent = !own.consent;
   return (
     <div className="pcard own">
       <div className="pcard-top">
@@ -81,7 +83,9 @@ function OwnCard({ own, draft, setDraft, ownData, setOwnData, save, logout }) {
             onClick={() => { setDraft((d) => ({ ...d, status: s.id })); setState('idle'); }}>{s.label}</button>
         ))}
       </div>
-      {!off && (
+      {off ? (
+        <div className="pcard-note">Wenn du nicht mitmachst, speichert der Rechner nur das, keine Verbrauchswerte.</div>
+      ) : (
         <>
           {draft.beispiel && <div className="pcard-chip">Beispielwerte, bitte mit deinen Angaben ersetzen</div>}
           <div className="pcard-grid">
@@ -99,41 +103,75 @@ function OwnCard({ own, draft, setDraft, ownData, setOwnData, save, logout }) {
             )}
             <input ref={fileRef} type="file" accept=".csv,.txt" hidden onChange={onFile} />
           </div>
-          {ownData && <div className="pcard-note">Rechnet mit Messdaten aus «{ownData.file}». Die Datei bleibt in deinem Browser, gespeichert wird nur der Jahresverbrauch.</div>}
+          {ownData && (
+            <div className="pcard-note">
+              Rechnet mit Messdaten aus «{ownData.file}». Die Werte gehen nur für die Berechnung an den Server und werden
+              nicht gespeichert. Gespeichert wird nur der Jahresverbrauch.
+            </div>
+          )}
           {msg && !ownData && <div className="pcard-note warn">{msg}</div>}
         </>
       )}
+      {needsConsent && (
+        <label className="consent">
+          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+          <span>
+            Ich bin einverstanden, dass meine Angaben für die Abklärung der LEG gespeichert werden, wie im{' '}
+            <button className="link" onClick={() => go('datenschutz')}>Datenschutzhinweis</button> beschrieben.
+          </span>
+        </label>
+      )}
       <div className="save-row">
-        <button className="btn" onClick={onSave} disabled={state === 'saving' || (!dirty && state !== 'error')}>
+        <button className="btn" onClick={() => run(() => save(consent), 'saved')}
+          disabled={state === 'saving' || (needsConsent && !consent) || (!dirty && !needsConsent && state !== 'error')}>
           {state === 'saving' ? 'Speichert …' : 'Speichern'}
         </button>
         {state === 'saved' && !dirty && <span className="save-msg ok">Gespeichert. Danke!</span>}
-        {state === 'error' && <span className="save-msg warn">Speichern fehlgeschlagen: {err}</span>}
-        {state === 'idle' && dirty && <span className="save-msg">Noch nicht gespeichert</span>}
+        {state === 'cleared' && <span className="save-msg ok">Deine Angaben sind gelöscht.</span>}
+        {state === 'error' && <span className="save-msg warn">Fehlgeschlagen: {err}</span>}
+        {state === 'idle' && dirty && !needsConsent && <span className="save-msg">Noch nicht gespeichert</span>}
       </div>
+      {own.consent && (
+        <div className="clear-row">
+          {confirmClear ? (
+            <>
+              <span className="save-msg">Alle gespeicherten Angaben zu deinem Haus löschen?</span>
+              <button className="btn danger small" onClick={() => { setConfirmClear(false); run(clear, 'cleared'); }}>Ja, löschen</button>
+              <button className="link small" onClick={() => setConfirmClear(false)}>Abbrechen</button>
+            </>
+          ) : (
+            <button className="link small" onClick={() => setConfirmClear(true)}>Meine Angaben löschen</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function Street({ community, own }) {
-  const hs = community.households;
-  const count = (st) => hs.filter((h) => h.status === st).length;
+function Street({ counts }) {
   return (
-    <div className="street">
-      <div className="street-sum">
-        <span><b>{count('ja')}</b> machen mit</span>
-        <span><b>{count('offen')}</b> noch offen</span>
-        <span><b>{count('nein')}</b> machen nicht mit</span>
-      </div>
-      <ul className="street-list">
-        {hs.map((h) => (
-          <li key={h.id} className={h.id === own?.id ? 'mine' : ''}>
-            <span>{h.address}{h.id === own?.id ? ' (du)' : ''}</span>
-            <span className={`st st-${h.status}`}>{STATUS_LABEL[h.status]}</span>
-          </li>
-        ))}
-      </ul>
+    <div className="street-sum">
+      <span><b>{counts.ja}</b> machen mit</span>
+      <span><b>{counts.offen}</b> noch offen</span>
+      <span><b>{counts.nein}</b> machen nicht mit</span>
     </div>
+  );
+}
+
+function OwnResult({ r }) {
+  return (
+    <>
+      <div className="kpis wide">
+        <div className="kpi accent">
+          <span className={r.ersparnis >= 0 ? 'kpi-v' : 'kpi-v neg'}>{chf(r.ersparnis)}</span>
+          <span className="kpi-l">Vorteil für dein Haus pro Jahr</span>
+        </div>
+        <div className="kpi"><span className="kpi-v">{chf(r.kostenOhne)}</span><span className="kpi-l">Stromkosten heute pro Jahr</span></div>
+        <div className="kpi"><span className="kpi-v">{kwh(r.bezogen)}</span><span className="kpi-l">bezogen aus der LEG</span></div>
+        <div className="kpi"><span className="kpi-v">{kwh(r.geliefert)}</span><span className="kpi-l">geliefert an die LEG</span></div>
+      </div>
+      <p className="hint">Kosten = Stromrechnung minus Erlöse aus Einspeisung und LEG-Verkauf, inkl. Grund- und Messpreis und Anteil LEG-Jahreskosten.</p>
+    </>
   );
 }
 
@@ -154,10 +192,10 @@ function downloadTemplate() {
 }
 
 export default function Calculator({
-  community, net, own, draft, setDraft, ownData, setOwnData, save, logout, includeOpen, setIncludeOpen,
+  server, net, own, draft, setDraft, ownData, setOwnData, save, clear, logout, go, includeOpen, setIncludeOpen,
   tariff, setTariff, leg, setLeg, result, reset,
 }) {
-  const { rows, summary: s, monthly } = result;
+  const { summary: s, monthly } = result;
   const [confirmReset, setConfirmReset] = useState(false);
   const T = (k) => (v) => setTariff((t) => ({ ...t, [k]: v }));
   const L = (k) => (v) => setLeg((l) => ({ ...l, [k]: v }));
@@ -166,18 +204,19 @@ export default function Calculator({
   const legP = legBezugPreis(tariff, leg);
   const priceMin = tariff.rueckliefer;
   const priceMax = tariff.energie + tariff.netz * (leg.rabatt / 100);
-  const savingsData = rows.map((r) => ({ name: r.name, v: Math.round(r.ersparnis) }));
   const amort = Number.isFinite(s.amortisationJahre) ? `${num(s.amortisationJahre, 1)} Jahre` : 'nie';
 
   return (
     <div className="calc">
       <div className="anim-head">
         <h1>Wirtschaftlichkeit</h1>
-        <p className="lead">Passe Teilnehmende, Preise und Kosten an. Alles wird sofort neu gerechnet, über alle 8760 Stunden eines Jahres.</p>
+        <p className="lead">Passe Preise und Kosten an. Alles wird sofort neu gerechnet, über alle 8760 Stunden eines Jahres.</p>
       </div>
 
+      <h2 className="h2">Ganze Strasse</h2>
+      {server?.counts && <Street counts={server.counts} />}
       <div className="kpis wide">
-        <div className="kpi accent"><span className="kpi-v">{chf(s.ersparnisNetto)}</span><span className="kpi-l">Vorteil pro Jahr, nach LEG-Kosten</span></div>
+        <div className="kpi accent"><span className="kpi-v">{chf(s.ersparnisNetto)}</span><span className="kpi-l">Vorteil pro Jahr für alle zusammen, nach LEG-Kosten</span></div>
         <div className="kpi"><span className="kpi-v">{amort}</span><span className="kpi-l">bis die Initialkosten von {chf(leg.initialkosten)} gedeckt sind</span></div>
         <div className="kpi"><span className="kpi-v">{kwh(s.leg)}</span><span className="kpi-l">LEG-Strom pro Jahr ({pct(s.legAnteilUeberschuss)} der Überschüsse)</span></div>
         <div className="kpi"><span className="kpi-v">{pct(s.autarkieMit)}</span><span className="kpi-l">lokaler Anteil am Verbrauch (ohne LEG {pct(s.autarkieOhne)})</span></div>
@@ -185,72 +224,30 @@ export default function Calculator({
       {s.ersparnisNetto <= 0 && (
         <div className="callout warn">Mit diesen Annahmen decken die Einsparungen die LEG-Kosten nicht. Mehr Bezüger, ein anderer LEG-Preis oder tiefere Kosten ändern das.</div>
       )}
+      <div className="row-actions">
+        <Toggle label="Offene Adressen mit Beispielwerten einrechnen" checked={includeOpen} onChange={setIncludeOpen} />
+      </div>
+      <p className="hint">
+        {net === 'loading' && !server ? 'Lädt … ' : ''}
+        Die Strasse erscheint nur als Summe, gerundet auf 1000 kWh und 10 CHF. Einzelne Häuser sind nicht sichtbar.
+        {server && server.examples > 0 && ` ${server.examples} von ${server.participants} Häusern in dieser Rechnung sind Beispielwerte.`}
+      </p>
 
       <h2 className="h2">Dein Haus</h2>
       {own && draft ? (
-        <OwnCard own={own} draft={draft} setDraft={setDraft} ownData={ownData} setOwnData={setOwnData} save={save} logout={logout} />
-      ) : (
-        <p className="hint">
-          Mit deinem persönlichen Link erfasst du Verbrauch, PV-Anlage und Teilnahme für dein Haus. Du hast keinen Link
-          bekommen? Melde dich bei Fabian Ackeret.
-        </p>
-      )}
-
-      <h2 className="h2">Stand an der Fluhmattstrasse</h2>
-      {community ? (
         <>
-          <Street community={community} own={own} />
-          <div className="row-actions">
-            <Toggle label="Offene Adressen mit Beispielwerten einrechnen" checked={includeOpen} onChange={setIncludeOpen} />
-            <button className="btn ghost" onClick={downloadTemplate}>CSV-Vorlage</button>
-          </div>
-          <p className="hint">
-            Angaben anderer Häuser erscheinen in den Resultaten nur anonym («Haus A», «Haus B» …). Offene Adressen
-            rechnet der Rechner mit Beispielwerten, solange der Schalter an ist.
-          </p>
+          <OwnCard own={own} draft={draft} setDraft={setDraft} ownData={ownData} setOwnData={setOwnData}
+            save={save} clear={clear} logout={logout} go={go} />
+          {result.own && draft.status !== 'nein' && <OwnResult r={result.own} />}
         </>
       ) : (
-        <p className="hint">{net === 'loading' ? 'Lädt …' : 'Nicht verfügbar. Der Rechner zeigt Beispielwerte.'}</p>
+        <p className="hint">
+          Mit deinem persönlichen Link erfasst du Verbrauch, PV-Anlage und Teilnahme für dein Haus und siehst dein eigenes
+          Ergebnis. Du hast keinen Link bekommen? Melde dich bei Fabian Ackeret.
+        </p>
       )}
-
-      <h2 className="h2">Ergebnis pro Haus</h2>
-      <div className="chart-card">
-        <div className="chart-title">Vorteil pro Jahr (CHF)</div>
-        <ResponsiveContainer width="100%" height={Math.max(160, rows.length * 30)}>
-          <BarChart data={savingsData} layout="vertical" margin={{ top: 4, right: 40, bottom: 4, left: 0 }}>
-            <XAxis type="number" hide />
-            <YAxis type="category" dataKey="name" width={84} tick={{ fontSize: 12, fill: 'var(--ink-2)' }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(v) => [chf(v), 'Vorteil']} cursor={{ fill: 'var(--hover)' }} contentStyle={tip} />
-            <Bar dataKey="v" radius={[0, 6, 6, 0]} label={{ position: 'right', fontSize: 12, fill: 'var(--ink)' }}>
-              {savingsData.map((d) => <Cell key={d.name} fill={d.v >= 0 ? 'var(--leg)' : 'var(--neg)'} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="table-wrap">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Haus</th><th>Verbrauch</th><th>Produktion</th><th>An LEG</th><th>Aus LEG</th>
-              <th>Kosten heute</th><th>Mit LEG</th><th>Vorteil</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className={r.id === own?.id ? 'mine' : undefined}>
-                <td>{r.name}</td>
-                <td>{num(r.verbrauch)}</td>
-                <td>{num(r.produktion)}</td>
-                <td>{num(r.geliefert)}</td>
-                <td>{num(r.bezogen)}</td>
-                <td>{num(r.kostenOhne)}</td>
-                <td>{num(r.kostenMit)}</td>
-                <td className={r.ersparnis >= 0 ? 'pos' : 'neg'}>{num(r.ersparnis)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="hint">kWh pro Jahr und CHF pro Jahr. Kosten = Stromrechnung minus Erlöse aus Einspeisung bzw. LEG-Verkauf, inkl. Grund- und Messpreis und Anteil LEG-Jahreskosten.</p>
+      <div className="row-actions">
+        <button className="btn ghost" onClick={downloadTemplate}>CSV-Vorlage für Messdaten</button>
       </div>
 
       <h2 className="h2">Verlauf übers Jahr</h2>
