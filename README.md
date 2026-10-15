@@ -6,9 +6,20 @@ Web-App, mit der die Nachbarschaft an der Fluhmattstrasse in 5222 Umiken prüfen
 - **Animation:** Ein Sommer-, Frühlings- oder Wintertag im Quartier mit animierten Energieflüssen (Eigenverbrauch → Nachbarn → IBB).
 - **Rechner:** Teilnehmende, Tarife und LEG-Kosten erfassen; Simulation über alle 8760 Stunden eines Jahres, Ergebnis pro Haus.
 
-Vorerfasst sind alle Adressen der Fluhmattstrasse gemäss amtlichem Gebäudeadressverzeichnis (geo.admin.ch) mit Beispielwerten für Verbrauch und PV. Weitere Adressen lassen sich hinzufügen, nicht teilnehmende Häuser ausschalten.
+Vorerfasst sind alle Adressen der Fluhmattstrasse gemäss amtlichem Gebäudeadressverzeichnis (geo.admin.ch). Solange ein Haus keine Angaben erfasst hat, rechnet der Rechner mit Beispielwerten.
 
-Alles läuft im Browser. Eingaben werden lokal gespeichert (localStorage), Messdaten-Dateien verlassen den Browser nicht.
+## Gemeinsame Daten
+
+Jedes Haus erhält einen persönlichen Link (`…/leg-rechner/?key=<token>#rechner`). Damit erfasst es Teilnahme, Jahresverbrauch, PV-Leistung, Wärmepumpe und E-Auto. Die Angaben liegen in einer Supabase-Datenbank (Free Tier, Region Zürich, Projekt `leg-rechner`).
+
+- Öffentlich sichtbar sind nur Adresse und Teilnahme. Die Werte der anderen Häuser kommen ohne Adresse und in zufälliger Reihenfolge an und erscheinen als «Haus A», «Haus B» usw.
+- Schreiben geht nur über die Funktion `save_household` mit gültigem Token. Die Tabelle `households` ist für anonyme Zugriffe gesperrt (RLS ohne Policies).
+- Tarife und LEG-Einstellungen bleiben pro Browser (localStorage). Messdaten-Dateien verlassen den Browser nicht; gespeichert wird nur der Jahresverbrauch.
+- Links neu auflisten: im Supabase SQL-Editor `select address, 'https://fabianackeret.github.io/leg-rechner/?key=' || edit_token || '#rechner' from households order by sort;`
+- Link eines Hauses ersetzen: `update households set edit_token = encode(extensions.gen_random_bytes(16), 'hex') where id = 'fm-6';`
+- Weitere Adresse: `insert into households (id, address, sort) values ('fm-20', 'Fluhmattstrasse 20', 17);`
+
+Supabase pausiert Free-Projekte nach etwa einer Woche ohne Zugriffe. Dann zeigt die Seite Beispielwerte, bis das Projekt im Supabase-Dashboard wieder gestartet ist.
 
 ## Rechenmodell
 

@@ -1,6 +1,5 @@
 import React, { useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { newId } from '../defaults.js';
 import { abgabenSumme, legBezugPreis, netzbezugPreis, parseCsv } from '../engine.js';
 import { chf, kwh, num, pct, rp } from '../format.js';
 
@@ -31,49 +30,109 @@ function Toggle({ label, checked, onChange }) {
   );
 }
 
-function ParticipantCard({ p, update, remove }) {
+const STATUS = [
+  { id: 'ja', label: 'Mache mit' },
+  { id: 'offen', label: 'Noch unsicher' },
+  { id: 'nein', label: 'Mache nicht mit' },
+];
+const STATUS_LABEL = { ja: 'macht mit', offen: 'noch offen', nein: 'macht nicht mit' };
+
+function OwnCard({ own, draft, setDraft, ownData, setOwnData, save, logout }) {
   const fileRef = useRef();
   const [msg, setMsg] = useState('');
+  const [state, setState] = useState('idle'); // idle | saving | saved | error
+  const [err, setErr] = useState('');
+  const set = (patch) => { setDraft((d) => ({ ...d, ...patch, beispiel: false })); setState('idle'); };
   const onFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     try {
       const parsed = parseCsv(await f.text());
-      const data = { load: parsed.load, pv: parsed.pv ?? undefined };
-      const verbrauch = Math.round(parsed.load.reduce((a, b) => a + b, 0));
-      set({ data: { ...data, file: f.name }, verbrauch });
+      setOwnData({ load: parsed.load, pv: parsed.pv ?? undefined, file: f.name });
+      set({ verbrauch: Math.round(parsed.load.reduce((a, b) => a + b, 0)) });
       setMsg(`${f.name}: ${num(parsed.rows)} Werte (${parsed.resolution}) geladen.`);
-    } catch (err) {
-      setMsg(`Fehler: ${err.message}`);
+    } catch (error) {
+      setMsg(`Fehler: ${error.message}`);
     }
     e.target.value = '';
   };
-  const off = p.aktiv === false;
-  const set = (patch) => update({ ...patch, beispiel: false });
+  const onSave = async () => {
+    setState('saving');
+    try {
+      await save();
+      setState('saved');
+    } catch (error) {
+      setErr(error.message);
+      setState('error');
+    }
+  };
+  const dirty = draft.status !== own.status || own.verbrauch == null || draft.verbrauch !== +own.verbrauch
+    || draft.pv !== (+own.pv || 0) || draft.wp !== own.wp || draft.ev !== own.ev;
+  const off = draft.status === 'nein';
   return (
-    <div className={off ? 'pcard off' : 'pcard'}>
+    <div className="pcard own">
       <div className="pcard-top">
-        <input className="pname" value={p.name} onChange={(e) => update({ name: e.target.value })} aria-label="Adresse oder Name" />
-        <Toggle label={off ? 'Macht nicht mit' : 'Macht mit'} checked={!off} onChange={(v) => update({ aktiv: v })} />
-        <button className="icon-btn" onClick={remove} aria-label={`${p.name} entfernen`}>✕</button>
+        <strong className="own-name">{own.address}</strong>
+        <button className="link small" onClick={logout}>Nicht dein Haus?</button>
       </div>
-      {p.beispiel && !off && <div className="pcard-chip">Beispielwerte – bitte echte Angaben erfassen</div>}
-      <div className="pcard-grid">
-        <NumField label="Verbrauch" unit="kWh/Jahr" step={100} value={p.verbrauch} onChange={(v) => set({ verbrauch: v })} />
-        <NumField label="PV-Anlage" unit="kWp" step={0.5} value={p.pv} onChange={(v) => set({ pv: v })} />
+      <div className="seg small" role="radiogroup" aria-label="Teilnahme">
+        {STATUS.map((s) => (
+          <button key={s.id} role="radio" aria-checked={draft.status === s.id} className={draft.status === s.id ? 'active' : ''}
+            onClick={() => { setDraft((d) => ({ ...d, status: s.id })); setState('idle'); }}>{s.label}</button>
+        ))}
       </div>
-      <div className="pcard-row">
-        <Toggle label="Wärmepumpe" checked={p.wp} onChange={(v) => set({ wp: v })} />
-        <Toggle label="E-Auto" checked={p.ev} onChange={(v) => set({ ev: v })} />
-        {p.data ? (
-          <button className="link small" onClick={() => { update({ data: undefined }); setMsg(''); }}>Messdaten entfernen</button>
-        ) : (
-          <button className="link small" onClick={() => fileRef.current?.click()}>Messdaten (CSV) laden</button>
-        )}
-        <input ref={fileRef} type="file" accept=".csv,.txt" hidden onChange={onFile} />
+      {!off && (
+        <>
+          {draft.beispiel && <div className="pcard-chip">Beispielwerte, bitte mit deinen Angaben ersetzen</div>}
+          <div className="pcard-grid">
+            <NumField label="Verbrauch" unit="kWh/Jahr" step={100} value={draft.verbrauch} onChange={(v) => set({ verbrauch: v })}
+              hint="Steht auf der IBB-Jahresrechnung" />
+            <NumField label="PV-Anlage" unit="kWp" step={0.5} value={draft.pv} onChange={(v) => set({ pv: v })} hint="0, wenn keine Anlage" />
+          </div>
+          <div className="pcard-row">
+            <Toggle label="Wärmepumpe" checked={draft.wp} onChange={(v) => set({ wp: v })} />
+            <Toggle label="E-Auto" checked={draft.ev} onChange={(v) => set({ ev: v })} />
+            {ownData ? (
+              <button className="link small" onClick={() => { setOwnData(undefined); setMsg(''); }}>Messdaten entfernen</button>
+            ) : (
+              <button className="link small" onClick={() => fileRef.current?.click()}>Messdaten (CSV) laden</button>
+            )}
+            <input ref={fileRef} type="file" accept=".csv,.txt" hidden onChange={onFile} />
+          </div>
+          {ownData && <div className="pcard-note">Rechnet mit Messdaten aus «{ownData.file}». Die Datei bleibt in deinem Browser, gespeichert wird nur der Jahresverbrauch.</div>}
+          {msg && !ownData && <div className="pcard-note warn">{msg}</div>}
+        </>
+      )}
+      <div className="save-row">
+        <button className="btn" onClick={onSave} disabled={state === 'saving' || (!dirty && state !== 'error')}>
+          {state === 'saving' ? 'Speichert …' : 'Speichern'}
+        </button>
+        {state === 'saved' && !dirty && <span className="save-msg ok">Gespeichert. Danke!</span>}
+        {state === 'error' && <span className="save-msg warn">Speichern fehlgeschlagen: {err}</span>}
+        {state === 'idle' && dirty && <span className="save-msg">Noch nicht gespeichert</span>}
       </div>
-      {p.data && <div className="pcard-note">Rechnet mit Messdaten aus «{p.data.file}»{p.data.pv ? '' : ' (Produktion aus kWp simuliert)'}.</div>}
-      {msg && !p.data && <div className="pcard-note warn">{msg}</div>}
+    </div>
+  );
+}
+
+function Street({ community, own }) {
+  const hs = community.households;
+  const count = (st) => hs.filter((h) => h.status === st).length;
+  return (
+    <div className="street">
+      <div className="street-sum">
+        <span><b>{count('ja')}</b> machen mit</span>
+        <span><b>{count('offen')}</b> noch offen</span>
+        <span><b>{count('nein')}</b> machen nicht mit</span>
+      </div>
+      <ul className="street-list">
+        {hs.map((h) => (
+          <li key={h.id} className={h.id === own?.id ? 'mine' : ''}>
+            <span>{h.address}{h.id === own?.id ? ' (du)' : ''}</span>
+            <span className={`st st-${h.status}`}>{STATUS_LABEL[h.status]}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -94,12 +153,12 @@ function downloadTemplate() {
   URL.revokeObjectURL(a.href);
 }
 
-export default function Calculator({ participants, setParticipants, tariff, setTariff, leg, setLeg, result, reset }) {
+export default function Calculator({
+  community, net, own, draft, setDraft, ownData, setOwnData, save, logout, includeOpen, setIncludeOpen,
+  tariff, setTariff, leg, setLeg, result, reset,
+}) {
   const { rows, summary: s, monthly } = result;
   const [confirmReset, setConfirmReset] = useState(false);
-  const up = (id) => (patch) => setParticipants((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-  const rm = (id) => () => setParticipants((ps) => ps.filter((p) => p.id !== id));
-  const add = () => setParticipants((ps) => [...ps, { id: newId(), name: 'Neue Adresse', verbrauch: 4500, pv: 0, wp: false, ev: false }]);
   const T = (k) => (v) => setTariff((t) => ({ ...t, [k]: v }));
   const L = (k) => (v) => setLeg((l) => ({ ...l, [k]: v }));
 
@@ -127,23 +186,32 @@ export default function Calculator({ participants, setParticipants, tariff, setT
         <div className="callout warn">Mit diesen Annahmen decken die Einsparungen die LEG-Kosten nicht. Mehr Bezüger, ein anderer LEG-Preis oder tiefere Kosten ändern das.</div>
       )}
 
-      <h2 className="h2">Teilnehmende</h2>
-      <div className="pcards">
-        {participants.map((p) => <ParticipantCard key={p.id} p={p} update={up(p.id)} remove={rm(p.id)} />)}
-      </div>
-      <div className="row-actions">
-        <button className="btn" onClick={add}>+ Adresse hinzufügen</button>
-        <button className="btn ghost" onClick={downloadTemplate}>CSV-Vorlage</button>
-        {confirmReset ? (
-          <button className="btn danger" onClick={() => { reset(); setConfirmReset(false); }}>Wirklich zurücksetzen?</button>
-        ) : (
-          <button className="btn ghost" onClick={() => setConfirmReset(true)}>Zurücksetzen</button>
-        )}
-      </div>
-      <p className="hint">
-        Messdaten: Export aus dem IBB-Kundenportal (15-Minuten- oder Stundenwerte eines Jahres). Spalten: Zeitpunkt; Verbrauch kWh; Produktion kWh.
-        Ohne Messdaten rechnet der Rechner mit typischen Profilen. Die Daten verlassen deinen Browser nicht.
-      </p>
+      <h2 className="h2">Dein Haus</h2>
+      {own && draft ? (
+        <OwnCard own={own} draft={draft} setDraft={setDraft} ownData={ownData} setOwnData={setOwnData} save={save} logout={logout} />
+      ) : (
+        <p className="hint">
+          Mit deinem persönlichen Link erfasst du Verbrauch, PV-Anlage und Teilnahme für dein Haus. Du hast keinen Link
+          bekommen? Melde dich bei Fabian Ackeret.
+        </p>
+      )}
+
+      <h2 className="h2">Stand an der Fluhmattstrasse</h2>
+      {community ? (
+        <>
+          <Street community={community} own={own} />
+          <div className="row-actions">
+            <Toggle label="Offene Adressen mit Beispielwerten einrechnen" checked={includeOpen} onChange={setIncludeOpen} />
+            <button className="btn ghost" onClick={downloadTemplate}>CSV-Vorlage</button>
+          </div>
+          <p className="hint">
+            Angaben anderer Häuser erscheinen in den Resultaten nur anonym («Haus A», «Haus B» …). Offene Adressen
+            rechnet der Rechner mit Beispielwerten, solange der Schalter an ist.
+          </p>
+        </>
+      ) : (
+        <p className="hint">{net === 'loading' ? 'Lädt …' : 'Nicht verfügbar. Der Rechner zeigt Beispielwerte.'}</p>
+      )}
 
       <h2 className="h2">Ergebnis pro Haus</h2>
       <div className="chart-card">
@@ -169,7 +237,7 @@ export default function Calculator({ participants, setParticipants, tariff, setT
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id}>
+              <tr key={r.id} className={r.id === own?.id ? 'mine' : undefined}>
                 <td>{r.name}</td>
                 <td>{num(r.verbrauch)}</td>
                 <td>{num(r.produktion)}</td>
@@ -248,6 +316,14 @@ export default function Calculator({ participants, setParticipants, tariff, setT
         <NumField label="Grundpreis" unit="CHF/Mt." step={0.1} value={tariff.grundpreisMonat} onChange={T('grundpreisMonat')} />
         <NumField label="Messpreis" unit="CHF/Mt." step={0.1} value={tariff.messpreisMonat} onChange={T('messpreisMonat')} />
       </div>
+      <div className="row-actions">
+        {confirmReset ? (
+          <button className="btn danger" onClick={() => { reset(); setConfirmReset(false); }}>Wirklich zurücksetzen?</button>
+        ) : (
+          <button className="btn ghost" onClick={() => setConfirmReset(true)}>Einstellungen zurücksetzen</button>
+        )}
+      </div>
+      <p className="hint">LEG-Einstellungen und Tarife gelten nur in deinem Browser. Andere sehen deine Änderungen nicht.</p>
 
       <details className="method">
         <summary>So rechnet das Modell</summary>

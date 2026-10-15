@@ -252,3 +252,24 @@ details p { margin: 8px 0 2px; color: var(--ink-2); }
 .pcard.off .pcard-grid, .pcard.off .pcard-row { display: none; }
 .pcard-top .toggle { flex: none; padding: 3px 10px; font-size: 0.78rem; }
 .pcard-chip { display: inline-block; font-size: 0.75rem; color: var(--sun-deep); background: color-mix(in srgb, var(--sun) 14%, var(--card)); border-radius: 6px; padding: 2px 8px; margin: 0 0 8px 6px; }
+
+/* Eigenes Haus und Stand der Strasse */
+.pcard.own { border-color: color-mix(in srgb, var(--leg) 45%, var(--line)); }
+.own-name { flex: 1; min-width: 0; }
+.pcard.own .seg { flex-wrap: wrap; margin: 4px 0 10px; }
+.save-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.save-msg { font-size: 0.85rem; color: var(--ink-2); }
+.save-msg.ok { color: var(--leg); }
+.save-msg.warn { color: var(--neg); }
+.street { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.street-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.92rem; margin-bottom: 10px; }
+.street-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px 18px; }
+@media (min-width: 720px) { .street-list { grid-template-columns: 1fr 1fr; } }
+.street-list li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+.street-list li.mine { font-weight: 600; }
+.st { font-size: 0.78rem; border-radius: 999px; padding: 1px 9px; white-space: nowrap; align-self: center; }
+.st-ja { background: color-mix(in srgb, var(--leg) 18%, var(--card)); color: var(--leg); }
+.st-offen { background: var(--hover); color: var(--ink-2); }
+.st-nein { background: color-mix(in srgb, var(--neg) 12%, var(--card)); color: var(--neg); }
+.tbl tr.mine td { font-weight: 600; }
