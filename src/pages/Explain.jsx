@@ -126,9 +126,9 @@ export default function Explain({ tariff, leg, result, go }) {
   const full = netzbezugPreis(tariff);
   const legP = legBezugPreis(tariff, leg);
   const rabattRp = tariff.netz * (leg.rabatt / 100);
-  const kuchen = tariff.energie - tariff.rueckliefer + rabattRp;
+  const kuchen = tariff.energie - tariff.rueckliefer + rabattRp - leg.gebuehrKwh;
   const vorteilBezug = full - legP;
-  const vorteilProd = leg.preis - tariff.rueckliefer;
+  const vorteilProd = leg.preis - leg.gebuehrKwh - tariff.rueckliefer;
 
   return (
     <div className="explain">
@@ -155,8 +155,8 @@ export default function Explain({ tariff, leg, result, go }) {
         </p>
         <p>
           Weil das öffentliche Netz genutzt wird, fallen Netzkosten an, aber mit Rabatt: <strong>40 %</strong> auf die
-          Netznutzung, wenn alle an derselben Netzebene (Niederspannung, Netzebene 7) hängen. Braucht der Austausch eine
-          Transformation über eine höhere Netzebene, sind es <strong>20 %</strong>. Abgaben wie Netzzuschlag,
+          Netznutzung, wenn alle am selben Trafokreis angeschlossen sind. Hängt auch nur ein Haus an einem anderen
+          Trafokreis, sind es für alle <strong>20 %</strong>. Abgaben wie Netzzuschlag,
           Stromreserve oder Konzessionsabgabe bleiben voll geschuldet.
         </p>
         <div className="callout">
@@ -199,12 +199,13 @@ export default function Explain({ tariff, leg, result, go }) {
           <div className="who-card" style={{ '--c': 'var(--sun)' }}>
             <span className="who-l">Produzenten</span>
             <span className="who-v">+{rp(vorteilProd)}</span>
-            <span className="who-d">pro kWh an Nachbarn statt {rp(tariff.rueckliefer)} Rückliefervergütung</span>
+            <span className="who-d">pro kWh an Nachbarn statt {rp(tariff.rueckliefer)} Rückliefervergütung, nach {rp(leg.gebuehrKwh)} IBB-Gebühr</span>
           </div>
         </div>
         <p>
           Pro getauschter kWh entsteht ein «Kuchen» von <strong>{rp(kuchen)}</strong>: die Differenz zwischen
-          IBB-Energiepreis und Rückliefervergütung plus der Netzrabatt. Der <strong>LEG-Preis</strong> entscheidet, wie
+          IBB-Energiepreis und Rückliefervergütung plus der Netzrabatt, abzüglich der IBB-Gebühr von {rp(leg.gebuehrKwh)}.
+          Der <strong>LEG-Preis</strong> entscheidet, wie
           dieser Kuchen zwischen Produzenten und Bezügern aufgeteilt wird. Liegt er in der Mitte, profitieren beide etwa
           gleich.
         </p>
@@ -220,7 +221,13 @@ export default function Explain({ tariff, leg, result, go }) {
           <li><strong>Smart Meter</strong> bei allen Teilnehmenden, damit 15-Minuten-Werte vorliegen.</li>
           <li><strong>Vertrag</strong> unter den Teilnehmenden: Preis, Verteilschlüssel, Ein- und Austritt, Abrechnung.</li>
           <li><strong>Eine Vertretung</strong> gegenüber der IBB, die die interne Abrechnung macht (André hat angeboten, das zu übernehmen).</li>
-          <li><strong>Kosten:</strong> Initialkosten sowie IBB-Gebühren für jede Mutation (Ein-/Austritt, Preisänderung). Diese teilen sich alle.</li>
+          <li>
+            <strong>Kosten der IBB</strong> (Preisblatt LEGPLUS 2026, exkl. MWST): einmalig {chf(leg.einrichtungLeg)} pro LEG,
+            {' '}{chf(leg.einrichtungAnlage)} pro PV-Anlage und {chf(leg.einrichtungMesspunkt)} pro Haus. Laufend {chf(leg.messpunktMonat, 2)} pro
+            Messpunkt und Monat, {rp(leg.gebuehrKwh)} pro kWh LEG-Strom und {chf(leg.mutationGebuehr)} pro Ein- oder Austritt.
+            Die IBB stellt alles der LEG-Vertretung in Rechnung.
+          </li>
+          <li><strong>Vorlaufzeit:</strong> Start jeweils auf Beginn eines Quartals, mit drei Monaten Vorlauf.</li>
           <li>Alle bleiben <strong>Kunde der IBB</strong>. Netz und Abgaben rechnet weiterhin die IBB ab. Jede Person kann nur in einer LEG sein.</li>
         </ul>
       </Section>
@@ -240,7 +247,7 @@ export default function Explain({ tariff, leg, result, go }) {
         </details>
         <details>
           <summary>Kann ich wieder austreten?</summary>
-          <p>Ja, gemäss Vertrag. Die IBB verlangt dafür eine Mutationsgebühr.</p>
+          <p>Ja, gemäss Vertrag. Die IBB verlangt dafür {chf(leg.mutationGebuehr)} (exkl. MWST), mindestens 10 Arbeitstage im Voraus gemeldet. Ein Mieter- oder Eigentümerwechsel kostet nichts.</p>
         </details>
         <details>
           <summary>Was kann ich selbst beitragen?</summary>

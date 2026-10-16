@@ -76,15 +76,26 @@ export function simulate(participants, tariff, leg, opts = {}) {
   const full = netzbezugPreis(tariff) * mw; // Rp/kWh, von IBB verrechnet
   const legNetzAbgaben = (tariff.netz * (1 - leg.rabatt / 100) + abgabenSumme(tariff)) * mw;
   const fix = (tariff.grundpreisMonat + tariff.messpreisMonat) * 12 * mw;
-  const legJahr = leg.jahreskosten + leg.mutationGebuehr * leg.mutationenProJahr;
-  const legJahrProKopf = n ? legJahr / n : 0;
+
+  // IBB-Gebühren LEGPLUS. Annahme: Ein Haus mit PV-Anlage zählt mit zwei Messpunkten (Bezug und Produktion).
+  const anlagen = tot.pv.reduce((a, v) => a + (v > 0 ? 1 : 0), 0);
+  const messpunkte = n + anlagen;
+  const initialkosten = n ? (leg.einrichtungLeg + (leg.beratung ? leg.beratungKosten : 0)
+    + leg.einrichtungAnlage * anlagen + leg.einrichtungMesspunkt * n) * mw : 0;
+  const messpunktJahr = leg.messpunktMonat * 12 * mw;
+  const gebuehrKwh = leg.gebuehrKwh * mw; // Rp., wird den Produzenten vom LEG-Erlös abgezogen
+  // Verwaltung und Mutationen tragen alle gleich, die Messpunkt-Gebühr jedes Haus für seine eigenen Messpunkte
+  const gemeinsam = leg.jahreskosten + leg.mutationGebuehr * leg.mutationenProJahr * mw;
+  const legJahr = gemeinsam + messpunkte * messpunktJahr;
+  const gemeinsamProKopf = n ? gemeinsam / n : 0;
 
   const rows = participants.map((p, i) => {
     const deficitTot = tot.gridImport[i] + tot.received[i];
     const surplusTot = tot.feedIn[i] + tot.given[i];
     const ohne = (deficitTot * full - surplusTot * tariff.rueckliefer) / 100 + fix;
+    const legFix = gemeinsamProKopf + (tot.pv[i] > 0 ? 2 : 1) * messpunktJahr;
     const mit = (tot.gridImport[i] * full + tot.received[i] * (leg.preis + legNetzAbgaben)
-      - tot.given[i] * leg.preis - tot.feedIn[i] * tariff.rueckliefer) / 100 + fix + legJahrProKopf;
+      - tot.given[i] * (leg.preis - gebuehrKwh) - tot.feedIn[i] * tariff.rueckliefer) / 100 + fix + legFix;
     return {
       id: p.id, name: p.name, pvKwp: +p.pv || 0,
       verbrauch: tot.load[i], produktion: tot.pv[i], eigen: tot.self[i],
@@ -92,18 +103,21 @@ export function simulate(participants, tariff, leg, opts = {}) {
       netzbezug: tot.gridImport[i], einspeisung: tot.feedIn[i],
       kostenOhne: ohne, kostenMit: mit, ersparnis: ohne - mit,
       ersparnisBezug: tot.received[i] * (full - leg.preis - legNetzAbgaben) / 100,
-      mehrerloesLieferung: tot.given[i] * (leg.preis - tariff.rueckliefer) / 100,
+      mehrerloesLieferung: tot.given[i] * (leg.preis - gebuehrKwh - tariff.rueckliefer) / 100,
     };
   });
 
   const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
+  // Brutto ist schon nach Abzug der kWh-Gebühr, netto zusätzlich nach den festen LEG-Kosten
   const ersparnisBrutto = sum('ersparnisBezug') + sum('mehrerloesLieferung');
   const ersparnisNetto = ersparnisBrutto - legJahr;
   const summary = {
     verbrauch: sum('verbrauch'), produktion: sum('produktion'), eigen: sum('eigen'),
     leg: sum('bezogen'), netzbezug: sum('netzbezug'), einspeisung: sum('einspeisung'),
     ersparnisBrutto, legJahr, ersparnisNetto,
-    amortisationJahre: ersparnisNetto > 0 ? leg.initialkosten / ersparnisNetto : Infinity,
+    legGebuehrKwh: sum('geliefert') * gebuehrKwh / 100,
+    initialkosten, messpunkte, anlagen,
+    amortisationJahre: ersparnisNetto > 0 ? initialkosten / ersparnisNetto : Infinity,
   };
   summary.autarkieOhne = summary.verbrauch ? summary.eigen / summary.verbrauch : 0;
   summary.autarkieMit = summary.verbrauch ? (summary.eigen + summary.leg) / summary.verbrauch : 0;

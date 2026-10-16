@@ -199,7 +199,7 @@ export default function Calculator({
 
   const full = netzbezugPreis(tariff);
   const legP = legBezugPreis(tariff, leg);
-  const priceMin = tariff.rueckliefer;
+  const priceMin = tariff.rueckliefer + leg.gebuehrKwh; // darunter erhalten Produzenten weniger als heute
   const priceMax = tariff.energie + tariff.netz * (leg.rabatt / 100);
   const amort = Number.isFinite(s.amortisationJahre) ? `${num(s.amortisationJahre, 1)} Jahre` : 'nie';
 
@@ -214,7 +214,7 @@ export default function Calculator({
       {server?.counts && <Street counts={server.counts} />}
       <div className="kpis wide">
         <div className="kpi accent"><span className="kpi-v">{chf(s.ersparnisNetto)}</span><span className="kpi-l">Vorteil pro Jahr für alle zusammen, nach LEG-Kosten</span></div>
-        <div className="kpi"><span className="kpi-v">{amort}</span><span className="kpi-l">bis die Initialkosten von {chf(leg.initialkosten)} gedeckt sind</span></div>
+        <div className="kpi"><span className="kpi-v">{amort}</span><span className="kpi-l">bis die Einrichtungskosten von {chf(s.initialkosten)} gedeckt sind</span></div>
         <div className="kpi"><span className="kpi-v">{kwh(s.leg)}</span><span className="kpi-l">LEG-Strom pro Jahr ({pct(s.legAnteilUeberschuss)} der Überschüsse)</span></div>
         <div className="kpi"><span className="kpi-v">{pct(s.autarkieMit)}</span><span className="kpi-l">lokaler Anteil am Verbrauch (ohne LEG {pct(s.autarkieOhne)})</span></div>
       </div>
@@ -281,22 +281,41 @@ export default function Calculator({
               <button key={v} className={leg.rabatt === v ? 'active' : ''} onClick={() => L('rabatt')(v)}>{v} %</button>
             ))}
           </div>
-          <span className="field-h">40 % wenn alle auf Netzebene 7 ohne Transformation; sonst 20 %.</span>
+          <span className="field-h">40 % wenn alle am selben Trafokreis angeschlossen sind; sonst 20 %.</span>
         </div>
         <div className="field span2">
           <span className="field-l">Interner LEG-Preis: <b>{rp(leg.preis)}</b> pro kWh</span>
           <input type="range" min={Math.floor(priceMin)} max={Math.ceil(priceMax)} step="0.1" value={leg.preis} onChange={(e) => L('preis')(+e.target.value)} />
           <span className="field-h">
-            Bezüger zahlen {rp(legP)} statt {rp(full)}. Produzenten erhalten {rp(leg.preis)} statt {rp(tariff.rueckliefer)}. Faire Mitte: {rp((priceMin + priceMax) / 2)}.
+            Bezüger zahlen {rp(legP)} statt {rp(full)}. Produzenten erhalten {rp(leg.preis - leg.gebuehrKwh)} (nach IBB-Gebühr)
+            statt {rp(tariff.rueckliefer)}. Faire Mitte: {rp((priceMin + priceMax) / 2)}.
           </span>
         </div>
-        <NumField label="Initialkosten" unit="CHF" step={50} value={leg.initialkosten} onChange={L('initialkosten')} hint="einmalig, Annahme" />
         <NumField label="Verwaltung" unit="CHF/Jahr" step={50} value={leg.jahreskosten} onChange={L('jahreskosten')} hint="0, wenn intern erledigt" />
-        <NumField label="IBB-Gebühr pro Mutation" unit="CHF" step={10} value={leg.mutationGebuehr} onChange={L('mutationGebuehr')} hint="Annahme, bei IBB erfragen" />
-        <NumField label="Mutationen pro Jahr" step={1} value={leg.mutationenProJahr} onChange={L('mutationenProJahr')} hint="Ein-/Austritte, Preisänderungen" />
+        <NumField label="Ein- und Austritte pro Jahr" step={1} value={leg.mutationenProJahr} onChange={L('mutationenProJahr')} hint="Mieter- und Eigentümerwechsel sind gratis" />
         <div className="field">
           <span className="field-l">Darstellung</span>
           <Toggle label="inkl. MWST" checked={leg.inklMwst} onChange={L('inklMwst')} />
+        </div>
+      </div>
+
+      <h2 className="h2">IBB-Gebühren LEGPLUS 2026</h2>
+      <p className="hint">
+        CHF exkl. MWST, gemäss Preisblatt «Preise für LEGPLUS» ab 1. Januar 2026. Die IBB stellt sie der LEG-Vertretung
+        in Rechnung. Für diese Rechnung: einmalig {chf(s.initialkosten)}, jährlich {chf(s.legJahr)} plus{' '}
+        {chf(s.legGebuehrKwh)} kWh-Gebühr. Ein Haus mit PV-Anlage zählt mit zwei Messpunkten (Annahme).
+      </p>
+      <div className="settings">
+        <NumField label="Einrichtung pro LEG" unit="CHF" step={10} value={leg.einrichtungLeg} onChange={L('einrichtungLeg')} hint="einmalig" />
+        <NumField label="Einrichtung pro PV-Anlage" unit="CHF" step={10} value={leg.einrichtungAnlage} onChange={L('einrichtungAnlage')} hint="einmalig" />
+        <NumField label="Einrichtung pro Messpunkt" unit="CHF" step={5} value={leg.einrichtungMesspunkt} onChange={L('einrichtungMesspunkt')} hint="einmalig, pro Haus" />
+        <NumField label="Abrechnung pro Messpunkt" unit="CHF/Mt." step={0.05} value={leg.messpunktMonat} onChange={L('messpunktMonat')} />
+        <NumField label="Gebühr pro kWh LEG-Strom" unit="Rp." step={0.1} value={leg.gebuehrKwh} onChange={L('gebuehrKwh')} hint="geht vom Erlös der Produzenten ab" />
+        <NumField label="Mutation" unit="CHF" step={5} value={leg.mutationGebuehr} onChange={L('mutationGebuehr')} hint="pro Ein- oder Austritt" />
+        <div className="field">
+          <span className="field-l">Gründungsberatung IBB</span>
+          <Toggle label={`einrechnen (${chf(leg.beratungKosten)})`} checked={leg.beratung} onChange={L('beratung')} />
+          <span className="field-h">optional</span>
         </div>
       </div>
 
@@ -330,8 +349,8 @@ export default function Calculator({
           <li>Eigener Solarstrom deckt zuerst den eigenen Verbrauch.</li>
           <li>Alle Überschüsse werden proportional auf den Restbedarf der anderen verteilt (dynamischer Verteilschlüssel).</li>
           <li>Restbedarf kommt von der IBB zum vollen Tarif, Restüberschuss geht zur Rückliefervergütung an die IBB.</li>
-          <li>LEG-Strom kostet den LEG-Preis plus Netznutzung mit Rabatt plus volle Abgaben. Der LEG-Preis geht an die Produzenten.</li>
-          <li>LEG-Jahreskosten (Verwaltung, Mutationen) werden gleichmässig auf alle verteilt.</li>
+          <li>LEG-Strom kostet den LEG-Preis plus Netznutzung mit Rabatt plus volle Abgaben. Der LEG-Preis geht an die Produzenten, abzüglich der IBB-Gebühr pro kWh.</li>
+          <li>Die IBB-Abrechnungsgebühr trägt jedes Haus für seine eigenen Messpunkte. Verwaltung und Mutationen werden gleichmässig auf alle verteilt.</li>
         </ol>
         <p className="muted">Vereinfachungen: Stundenwerte statt 15 Minuten (bei Messdaten werden 15-Minuten-Werte zu Stunden summiert), keine Batterien, Rabatt nur auf den Arbeitspreis der Netznutzung.</p>
       </details>

@@ -33,8 +33,9 @@ Pro Stunde und Haus:
 2. Überschüsse aller Produzenten werden proportional auf den Restbedarf der übrigen verteilt (dynamischer Verteilschlüssel).
 3. Restbedarf kommt von der IBB, Restüberschuss geht zur Rückliefervergütung an die IBB.
 
-Kosten LEG-Strom für Bezüger = LEG-Preis + Netznutzung × (1 − Rabatt) + volle Abgaben. Der LEG-Preis geht an die Produzenten.
-LEG-Jahreskosten (Verwaltung, IBB-Mutationsgebühren) werden gleichmässig verteilt.
+Kosten LEG-Strom für Bezüger = LEG-Preis + Netznutzung × (1 − Rabatt) + volle Abgaben. Der LEG-Preis geht an die Produzenten, abzüglich der IBB-Gebühr pro kWh.
+Die IBB-Abrechnungsgebühr trägt jedes Haus für seine eigenen Messpunkte (ein Haus mit PV-Anlage zählt mit zwei). Verwaltung und Mutationen werden gleichmässig verteilt.
+Die Amortisation rechnet mit den einmaligen IBB-Einrichtungspauschalen.
 
 Ohne Messdaten werden typische Profile simuliert (PV ~1000 kWh/kWp, Haushalt, Wärmepumpe, E-Auto).
 Messdaten können pro Haus als CSV geladen werden (15-Minuten- oder Stundenwerte ab 1. Januar 00:00, Spalten `verbrauch_kwh;produktion_kwh`).
@@ -44,9 +45,11 @@ Messdaten können pro Haus als CSV geladen werden (15-Minuten- oder Stundenwerte
 | Wert | Quelle |
 |---|---|
 | Energie 12.11, Netz 7.96, Abgaben 3.55 Rp./kWh, Grund- 5.50 und Messpreis 6.50 CHF/Mt. | IBB Preisblatt «Strompreise Basis 2026», IBB-Erneuerbar, exkl. MWST |
-| Netzrabatt 40 % / 20 % | StromVG Art. 17e, StromVV Art. 19h |
+| Netzrabatt 40 % (alle am selben Trafokreis) / 20 % | StromVG Art. 17e, StromVV Art. 19h, IBB-Preisblatt LEGPLUS |
+| Einrichtung 350 CHF pro LEG, 150 CHF pro PV-Anlage, 25 CHF pro Messpunkt; Beratung 500 CHF (optional); Abrechnung 2.75 CHF pro Messpunkt und Monat plus 1.00 Rp./kWh LEG-Strom; Mutation 95 CHF | IBB Preisblatt «Preise für LEGPLUS» ab 1.1.2026, exkl. MWST |
+| Zwei Messpunkte pro Haus mit PV-Anlage | **Annahme** – bei der IBB bestätigen |
 | Rückliefervergütung 6.0 Rp./kWh | **Annahme** (Minimalvergütung) – IBB-Preisblatt «Vergütung Stromproduzenten 2026» prüfen |
-| LEG-Preis 10 Rp., Initialkosten 600 CHF, Mutationsgebühr 50 CHF | **Annahmen**, im Rechner anpassbar |
+| LEG-Preis 10 Rp., 1 Ein- oder Austritt pro Jahr | **Annahmen**, im Rechner anpassbar |
 
 ## Entwicklung
 

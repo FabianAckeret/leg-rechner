@@ -15,13 +15,21 @@ export const DEFAULT_TARIFF = {
   mwst: 8.1,
 };
 
+// IBB-Gebühren gemäss Preisblatt «Preise für LEGPLUS», gültig ab 1. Januar 2026, CHF exkl. MWST.
+// Die IBB stellt sie der LEG-Vertretung in Rechnung.
 export const DEFAULT_LEG = {
-  rabatt: 40, // % auf Netznutzung: 40 % (nur Netzebene 7) oder 20 % (mit Transformation)
+  rabatt: 40, // % auf Netznutzung: 40 % (alle am selben Trafokreis) oder 20 %
   preis: 10.0, // interner LEG-Energiepreis in Rp./kWh, von den Teilnehmenden festgelegt
-  initialkosten: 600, // CHF einmalig (Annahme)
-  jahreskosten: 0, // CHF pro Jahr für Verwaltung/Dienstleister (Admin übernimmt André)
-  mutationGebuehr: 50, // CHF pro Mutation (Annahme – IBB-Preis erfragen)
-  mutationenProJahr: 2,
+  einrichtungLeg: 350, // einmalig pro LEG
+  einrichtungAnlage: 150, // einmalig pro Produktionsanlage
+  einrichtungMesspunkt: 25, // einmalig pro Messpunkt ohne Produktionsanlage
+  beratung: false, // Unterstützung bei der Gründung, optional
+  beratungKosten: 500, // einmalig
+  messpunktMonat: 2.75, // Abrechnung und Inkasso pro Messpunkt und Monat
+  gebuehrKwh: 1.0, // Rp. pro verteilter kWh LEG-Strom, wird vom Erlös der Produzenten abgezogen
+  jahreskosten: 0, // CHF pro Jahr für interne Verwaltung (Admin übernimmt André)
+  mutationGebuehr: 95, // pro Ein- oder Austritt
+  mutationenProJahr: 1,
   inklMwst: false,
 };
 

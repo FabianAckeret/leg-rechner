@@ -102,11 +102,13 @@ Deno.serve(async (req) => {
   const { rows: results, summary: s, monthly } = simulate(participants, tariff, leg);
   // Grob runden, damit sich aus zwei Abfragen kein einzelnes Haus herausrechnen lässt
   const kwhKeys = ['verbrauch', 'produktion', 'eigen', 'leg', 'netzbezug', 'einspeisung'];
-  const summary: Record<string, number> = { legJahr: s.legJahr };
+  const summary: Record<string, number> = {
+    legJahr: round(s.legJahr, 10), initialkosten: round(s.initialkosten, 10), legGebuehrKwh: round(s.legGebuehrKwh, 10),
+  };
   for (const k of kwhKeys) summary[k] = round(s[k], 1000);
   summary.ersparnisBrutto = round(s.ersparnisBrutto, 10);
   summary.ersparnisNetto = round(s.ersparnisNetto, 10);
-  summary.amortisationJahre = summary.ersparnisNetto > 0 ? leg.initialkosten / summary.ersparnisNetto : null as unknown as number;
+  summary.amortisationJahre = summary.ersparnisNetto > 0 ? summary.initialkosten / summary.ersparnisNetto : null as unknown as number;
   for (const k of ['autarkieOhne', 'autarkieMit', 'legAnteilUeberschuss']) summary[k] = round(s[k], 0.01);
   const ownResult = results.find((r: { id: string }) => r.id === ownRow?.id) ?? null;
 
