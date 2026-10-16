@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { abgabenSumme, legBezugPreis, netzbezugPreis, parseCsv } from '../engine.js';
 import { chf, kwh, num, pct, rp } from '../format.js';
+import { HOURS } from '../profiles.js';
 
 const tip = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13, color: 'var(--ink)' };
 
@@ -175,14 +176,10 @@ function OwnResult({ r }) {
   );
 }
 
+// Eine Zeile pro Stunde ab 1. Januar 00:00; parseCsv liest die Werte nach Reihenfolge, nicht nach Zeitstempel
 function downloadTemplate() {
-  const lines = ['zeitpunkt;verbrauch_kwh;produktion_kwh'];
-  const start = new Date(Date.UTC(2026, 0, 1));
-  for (let i = 0; i < 96; i++) {
-    const d = new Date(start.getTime() + i * 15 * 60000);
-    lines.push(`${d.toISOString().slice(0, 16).replace('T', ' ')};0.120;0.000`);
-  }
-  lines.push('… (bis 31.12. 23:45, total 35040 Zeilen)');
+  const lines = ['verbrauch_kwh;produktion_kwh'];
+  for (let i = 0; i < HOURS; i++) lines.push('0.000;0.000');
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -249,6 +246,10 @@ export default function Calculator({
       <div className="row-actions">
         <button className="btn ghost" onClick={downloadTemplate}>CSV-Vorlage für Messdaten</button>
       </div>
+      <p className="hint">
+        Zwei Spalten, Verbrauch und Produktion in kWh. Eine Zeile pro Stunde (8760 Zeilen) oder pro 15 Minuten
+        (35040 Zeilen), beginnend am 1. Januar um 00:00.
+      </p>
 
       <h2 className="h2">Verlauf übers Jahr</h2>
       <div className="chart-card">

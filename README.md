@@ -37,7 +37,7 @@ Kosten LEG-Strom für Bezüger = LEG-Preis + Netznutzung × (1 − Rabatt) + vol
 LEG-Jahreskosten (Verwaltung, IBB-Mutationsgebühren) werden gleichmässig verteilt.
 
 Ohne Messdaten werden typische Profile simuliert (PV ~1000 kWh/kWp, Haushalt, Wärmepumpe, E-Auto).
-Messdaten können pro Haus als CSV geladen werden (15-Minuten- oder Stundenwerte, Spalten `zeitpunkt;verbrauch_kwh;produktion_kwh`).
+Messdaten können pro Haus als CSV geladen werden (15-Minuten- oder Stundenwerte ab 1. Januar 00:00, Spalten `verbrauch_kwh;produktion_kwh`).
 
 ## Standardwerte
 
