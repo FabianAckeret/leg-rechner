@@ -11,7 +11,13 @@ export const DEFAULT_TARIFF = {
   konzession: 0.52, // Konzessionsabgabe Gemeinde
   grundpreisMonat: 5.5, // CHF pro Monat und Zähler
   messpreisMonat: 6.5, // CHF pro Monat und Zähler
-  rueckliefer: 6.0, // Annahme: Minimalvergütung PV < 30 kW ab 2026 – bitte mit IBB-Preisblatt prüfen
+  // Abnahmevergütung IBB ab 1.1.2027 (Preisblatt, exkl. MWST), Festpreis nach Anlagenleistung.
+  // Winter = Oktober bis März, Sommer = April bis September.
+  rlKlein: 10.0, // bis 2 kW, ganzjährig
+  rlMittelWinter: 13.0, // 2 bis 30 kW
+  rlMittelSommer: 8.0,
+  rlGrossWinter: 11.0, // 30 bis 150 kW (ab 150 kW gilt der Marktpreis, hier nicht gerechnet)
+  rlGrossSommer: 6.0,
   mwst: 8.1,
 };
 

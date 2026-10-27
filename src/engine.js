@@ -14,6 +14,14 @@ export const netzbezugPreis = (t) => t.energie + t.netz + abgabenSumme(t);
 // Was ein Bezüger für 1 kWh LEG-Strom bezahlt (Rp.)
 export const legBezugPreis = (t, leg) => leg.preis + t.netz * (1 - leg.rabatt / 100) + abgabenSumme(t);
 
+// Abnahmevergütung der IBB (Rp./kWh) nach Anlagenleistung und Monat (Winter = Okt bis Mär)
+export const rueckRate = (t, kwp, month) => {
+  const winter = month >= 9 || month <= 2;
+  if (!(kwp > 2)) return t.rlKlein;
+  if (kwp <= 30) return winter ? t.rlMittelWinter : t.rlMittelSommer;
+  return winter ? t.rlGrossWinter : t.rlGrossSommer;
+};
+
 // Liefert Zeitreihen je Teilnehmer: eigene Messdaten (CSV) haben Vorrang vor Beispielprofil
 export function seriesFor(p) {
   return {
@@ -35,6 +43,7 @@ export function simulate(participants, tariff, leg, opts = {}) {
   const n = participants.length;
   const series = participants.map(seriesFor);
   const z = () => new Float64Array(n);
+  const feedRev = z(), surplusRev = z(); // Erlös in Rp.
   const tot = { load: z(), pv: z(), self: z(), given: z(), received: z(), gridImport: z(), feedIn: z() };
   const monthly = MONTHS.map((m) => ({ monat: m, eigen: 0, leg: 0, netz: 0, einspeisung: 0, produktion: 0, verbrauch: 0 }));
   const keepHourly = opts.hourly;
@@ -57,8 +66,10 @@ export function simulate(participants, tariff, leg, opts = {}) {
     const fg = S > 0 ? X / S : 0, fr = D > 0 ? X / D : 0;
     const m = monthOfHour[h];
     for (let i = 0; i < n; i++) {
+      const rate = rueckRate(tariff, +participants[i].pv || 0, m);
       const g = surplus[i] * fg, r = deficit[i] * fr;
       const gi = deficit[i] - r, fi = surplus[i] - g;
+      surplusRev[i] += surplus[i] * rate; feedRev[i] += fi * rate;
       tot.given[i] += g; tot.received[i] += r; tot.gridImport[i] += gi; tot.feedIn[i] += fi;
       monthly[m].eigen += Math.min(series[i].load[h], series[i].pv[h]);
       monthly[m].netz += gi; monthly[m].einspeisung += fi;
@@ -91,11 +102,10 @@ export function simulate(participants, tariff, leg, opts = {}) {
 
   const rows = participants.map((p, i) => {
     const deficitTot = tot.gridImport[i] + tot.received[i];
-    const surplusTot = tot.feedIn[i] + tot.given[i];
-    const ohne = (deficitTot * full - surplusTot * tariff.rueckliefer) / 100 + fix;
+    const ohne = (deficitTot * full) / 100 - surplusRev[i] / 100 + fix;
     const legFix = gemeinsamProKopf + (tot.pv[i] > 0 ? 2 : 1) * messpunktJahr;
     const mit = (tot.gridImport[i] * full + tot.received[i] * (leg.preis + legNetzAbgaben)
-      - tot.given[i] * (leg.preis - gebuehrKwh) - tot.feedIn[i] * tariff.rueckliefer) / 100 + fix + legFix;
+      - tot.given[i] * (leg.preis - gebuehrKwh)) / 100 - feedRev[i] / 100 + fix + legFix;
     return {
       id: p.id, name: p.name, pvKwp: +p.pv || 0,
       verbrauch: tot.load[i], produktion: tot.pv[i], eigen: tot.self[i],
@@ -103,7 +113,7 @@ export function simulate(participants, tariff, leg, opts = {}) {
       netzbezug: tot.gridImport[i], einspeisung: tot.feedIn[i],
       kostenOhne: ohne, kostenMit: mit, ersparnis: ohne - mit,
       ersparnisBezug: tot.received[i] * (full - leg.preis - legNetzAbgaben) / 100,
-      mehrerloesLieferung: tot.given[i] * (leg.preis - gebuehrKwh - tariff.rueckliefer) / 100,
+      mehrerloesLieferung: (tot.given[i] * (leg.preis - gebuehrKwh) - (surplusRev[i] - feedRev[i])) / 100,
     };
   });
 
@@ -117,8 +127,11 @@ export function simulate(participants, tariff, leg, opts = {}) {
     ersparnisBrutto, legJahr, ersparnisNetto,
     legGebuehrKwh: sum('geliefert') * gebuehrKwh / 100,
     initialkosten, messpunkte, anlagen,
+    rlEffektiv: 0,
     amortisationJahre: ersparnisNetto > 0 ? initialkosten / ersparnisNetto : Infinity,
   };
+  const surTot = summary.produktion - summary.eigen;
+  summary.rlEffektiv = surTot > 0 ? surplusRev.reduce((a, v) => a + v, 0) / surTot : tariff.rlMittelSommer;
   summary.autarkieOhne = summary.verbrauch ? summary.eigen / summary.verbrauch : 0;
   summary.autarkieMit = summary.verbrauch ? (summary.eigen + summary.leg) / summary.verbrauch : 0;
   summary.legAnteilUeberschuss = summary.produktion - summary.eigen > 0 ? summary.leg / (summary.produktion - summary.eigen) : 0;

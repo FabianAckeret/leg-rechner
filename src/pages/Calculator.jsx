@@ -199,7 +199,8 @@ export default function Calculator({
 
   const full = netzbezugPreis(tariff);
   const legP = legBezugPreis(tariff, leg);
-  const priceMin = tariff.rueckliefer + leg.gebuehrKwh; // darunter erhalten Produzenten weniger als heute
+  const rl = s.rlEffektiv ?? tariff.rlMittelSommer;
+  const priceMin = rl + leg.gebuehrKwh; // darunter erhalten Produzenten weniger als heute
   const priceMax = tariff.energie + tariff.netz * (leg.rabatt / 100);
   const amort = Number.isFinite(s.amortisationJahre) ? `${num(s.amortisationJahre, 1)} Jahre` : 'nie';
 
@@ -288,7 +289,7 @@ export default function Calculator({
           <input type="range" min={Math.floor(priceMin)} max={Math.ceil(priceMax)} step="0.1" value={leg.preis} onChange={(e) => L('preis')(+e.target.value)} />
           <span className="field-h">
             Bezüger zahlen {rp(legP)} statt {rp(full)}. Produzenten erhalten {rp(leg.preis - leg.gebuehrKwh)} (nach IBB-Gebühr)
-            statt {rp(tariff.rueckliefer)}. Faire Mitte: {rp((priceMin + priceMax) / 2)}.
+            statt durchschnittlich {rp(rl)} Abnahmevergütung. Faire Mitte: {rp((priceMin + priceMax) / 2)}.
           </span>
         </div>
         <NumField label="Verwaltung" unit="CHF/Jahr" step={50} value={leg.jahreskosten} onChange={L('jahreskosten')} hint="0, wenn intern erledigt" />
@@ -329,7 +330,11 @@ export default function Calculator({
         <NumField label="Stromreserve" unit="Rp." step={0.01} value={tariff.stromreserve} onChange={T('stromreserve')} />
         <NumField label="Solidarisierte Kosten" unit="Rp." step={0.01} value={tariff.solidarisiert} onChange={T('solidarisiert')} />
         <NumField label="Konzessionsabgabe" unit="Rp." step={0.01} value={tariff.konzession} onChange={T('konzession')} />
-        <NumField label="Rückliefervergütung" unit="Rp." step={0.1} value={tariff.rueckliefer} onChange={T('rueckliefer')} hint="Annahme, IBB-Preisblatt prüfen" />
+        <NumField label="Abnahmevergütung bis 2 kW" unit="Rp." step={0.1} value={tariff.rlKlein} onChange={T('rlKlein')} hint="IBB ab 2027" />
+        <NumField label="Abnahmevergütung 2–30 kW, Winter" unit="Rp." step={0.1} value={tariff.rlMittelWinter} onChange={T('rlMittelWinter')} hint="Okt–Mär" />
+        <NumField label="Abnahmevergütung 2–30 kW, Sommer" unit="Rp." step={0.1} value={tariff.rlMittelSommer} onChange={T('rlMittelSommer')} hint="Apr–Sep" />
+        <NumField label="Abnahmevergütung 30–150 kW, Winter" unit="Rp." step={0.1} value={tariff.rlGrossWinter} onChange={T('rlGrossWinter')} hint="Okt–Mär" />
+        <NumField label="Abnahmevergütung 30–150 kW, Sommer" unit="Rp." step={0.1} value={tariff.rlGrossSommer} onChange={T('rlGrossSommer')} hint="Apr–Sep" />
         <NumField label="Grundpreis" unit="CHF/Mt." step={0.1} value={tariff.grundpreisMonat} onChange={T('grundpreisMonat')} />
         <NumField label="Messpreis" unit="CHF/Mt." step={0.1} value={tariff.messpreisMonat} onChange={T('messpreisMonat')} />
       </div>
@@ -348,7 +353,7 @@ export default function Calculator({
           <li>Für jede Stunde des Jahres werden Verbrauch und Produktion je Haus bestimmt (Messdaten oder typische Profile für Mittelland, ~1000 kWh pro kWp).</li>
           <li>Eigener Solarstrom deckt zuerst den eigenen Verbrauch.</li>
           <li>Alle Überschüsse werden proportional auf den Restbedarf der anderen verteilt (dynamischer Verteilschlüssel).</li>
-          <li>Restbedarf kommt von der IBB zum vollen Tarif, Restüberschuss geht zur Rückliefervergütung an die IBB.</li>
+          <li>Restbedarf kommt von der IBB zum vollen Tarif, Restüberschuss geht zur Abnahmevergütung an die IBB.</li>
           <li>LEG-Strom kostet den LEG-Preis plus Netznutzung mit Rabatt plus volle Abgaben. Der LEG-Preis geht an die Produzenten, abzüglich der IBB-Gebühr pro kWh.</li>
           <li>Die IBB-Abrechnungsgebühr trägt jedes Haus für seine eigenen Messpunkte. Verwaltung und Mutationen werden gleichmässig auf alle verteilt.</li>
         </ol>

@@ -20,7 +20,7 @@ function Cascade() {
   const steps = [
     { t: 'Eigenverbrauch', d: 'Solarstrom deckt zuerst den eigenen Bedarf im Haus. Das ist schon heute so und kostet nichts.', c: 'var(--sun)' },
     { t: 'Nachbarn in der LEG', d: 'Was übrig bleibt, geht übers öffentliche Netz an LEG-Mitglieder, die gerade Strom brauchen.', c: 'var(--leg)' },
-    { t: 'IBB-Netz', d: 'Erst der Rest wird zur normalen Rückliefervergütung an die IBB verkauft.', c: 'var(--grid)' },
+    { t: 'IBB-Netz', d: 'Erst der Rest wird zur Abnahmevergütung an die IBB verkauft.', c: 'var(--grid)' },
   ];
   return (
     <ol className="cascade">
@@ -126,9 +126,10 @@ export default function Explain({ tariff, leg, result, go }) {
   const full = netzbezugPreis(tariff);
   const legP = legBezugPreis(tariff, leg);
   const rabattRp = tariff.netz * (leg.rabatt / 100);
-  const kuchen = tariff.energie - tariff.rueckliefer + rabattRp - leg.gebuehrKwh;
+  const rl = s.rlEffektiv ?? tariff.rlMittelSommer; // mittlere Abnahmevergütung der IBB
+  const kuchen = tariff.energie - rl + rabattRp - leg.gebuehrKwh;
   const vorteilBezug = full - legP;
-  const vorteilProd = leg.preis - leg.gebuehrKwh - tariff.rueckliefer;
+  const vorteilProd = leg.preis - leg.gebuehrKwh - rl;
 
   return (
     <div className="explain">
@@ -137,7 +138,7 @@ export default function Explain({ tariff, leg, result, go }) {
         <h1>Unser Solarstrom bleibt im Quartier.</h1>
         <p className="lead">
           Seit 2026 dürfen Nachbarn Solarstrom übers öffentliche Netz untereinander verkaufen. Wer bezieht, zahlt weniger
-          als bei der IBB. Wer produziert, erhält mehr als die Rückliefervergütung. Hier steht, wie das funktioniert.
+          als bei der IBB. Wer produziert, erhält mehr als die Abnahmevergütung. Hier steht, wie das funktioniert.
         </p>
         <div className="kpis">
           <div className="kpi"><span className="kpi-v">{chf(s.ersparnisNetto)}</span><span className="kpi-l">Vorteil pro Jahr für alle zusammen</span></div>
@@ -199,12 +200,12 @@ export default function Explain({ tariff, leg, result, go }) {
           <div className="who-card" style={{ '--c': 'var(--sun)' }}>
             <span className="who-l">Produzenten</span>
             <span className="who-v">+{rp(vorteilProd)}</span>
-            <span className="who-d">pro kWh an Nachbarn statt {rp(tariff.rueckliefer)} Rückliefervergütung, nach {rp(leg.gebuehrKwh)} IBB-Gebühr</span>
+            <span className="who-d">pro kWh an Nachbarn statt durchschnittlich {rp(rl)} Abnahmevergütung, nach {rp(leg.gebuehrKwh)} IBB-Gebühr</span>
           </div>
         </div>
         <p>
           Pro getauschter kWh entsteht ein «Kuchen» von <strong>{rp(kuchen)}</strong>: die Differenz zwischen
-          IBB-Energiepreis und Rückliefervergütung plus der Netzrabatt, abzüglich der IBB-Gebühr von {rp(leg.gebuehrKwh)}.
+          IBB-Energiepreis und Abnahmevergütung plus der Netzrabatt, abzüglich der IBB-Gebühr von {rp(leg.gebuehrKwh)}.
           Der <strong>LEG-Preis</strong> entscheidet, wie
           dieser Kuchen zwischen Produzenten und Bezügern aufgeteilt wird. Liegt er in der Mitte, profitieren beide etwa
           gleich.
@@ -262,7 +263,7 @@ export default function Explain({ tariff, leg, result, go }) {
 
       <p className="sources">
         Grundlagen: StromVG Art. 17d–17e, StromVV Art. 19e ff. (in Kraft seit 1.1.2026); IBB Preisblatt «Strompreise
-        Basis 2026». Die Rückliefervergütung ist eine Annahme und im Rechner anpassbar.
+        Basis 2026». Die Abnahmevergütung stammt aus dem IBB-Preisblatt 2027 (je nach Anlagengrösse und Jahreszeit) und ist im Rechner anpassbar.
       </p>
     </div>
   );

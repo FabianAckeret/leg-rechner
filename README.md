@@ -31,7 +31,7 @@ Pro Stunde und Haus:
 
 1. Eigener Solarstrom deckt zuerst den eigenen Verbrauch.
 2. Überschüsse aller Produzenten werden proportional auf den Restbedarf der übrigen verteilt (dynamischer Verteilschlüssel).
-3. Restbedarf kommt von der IBB, Restüberschuss geht zur Rückliefervergütung an die IBB.
+3. Restbedarf kommt von der IBB, Restüberschuss geht zur Abnahmevergütung an die IBB (nach Anlagenleistung und Saison).
 
 Kosten LEG-Strom für Bezüger = LEG-Preis + Netznutzung × (1 − Rabatt) + volle Abgaben. Der LEG-Preis geht an die Produzenten, abzüglich der IBB-Gebühr pro kWh.
 Die IBB-Abrechnungsgebühr trägt jedes Haus für seine eigenen Messpunkte (ein Haus mit PV-Anlage zählt mit zwei). Verwaltung und Mutationen werden gleichmässig verteilt.
@@ -48,7 +48,7 @@ Messdaten können pro Haus als CSV geladen werden (15-Minuten- oder Stundenwerte
 | Netzrabatt 40 % (alle am selben Trafokreis) / 20 % | StromVG Art. 17e, StromVV Art. 19h, IBB-Preisblatt LEGPLUS |
 | Einrichtung 350 CHF pro LEG, 150 CHF pro PV-Anlage, 25 CHF pro Messpunkt; Beratung 500 CHF (optional); Abrechnung 2.75 CHF pro Messpunkt und Monat plus 1.00 Rp./kWh LEG-Strom; Mutation 95 CHF | IBB Preisblatt «Preise für LEGPLUS» ab 1.1.2026, exkl. MWST |
 | Zwei Messpunkte pro Haus mit PV-Anlage | **Annahme** – bei der IBB bestätigen |
-| Rückliefervergütung 6.0 Rp./kWh | **Annahme** (Minimalvergütung) – IBB-Preisblatt «Vergütung Stromproduzenten 2026» prüfen |
+| Abnahmevergütung ab 1.1.2027: bis 2 kW 10.0; 2–30 kW Winter 13.0 / Sommer 8.0; 30–150 kW Winter 11.0 / Sommer 6.0 Rp./kWh (Winter = Okt–Mär) | IBB Preisblatt «Abnahmevergütung 2027», exkl. MWST, Festpreis. Dafür müssen die Herkunftsnachweise an die IBB gehen; die Marktpreis-Variante (und Anlagen ab 150 kW) sind nicht gerechnet |
 | LEG-Preis 10 Rp., 1 Ein- oder Austritt pro Jahr | **Annahmen**, im Rechner anpassbar |
 
 ## Entwicklung
