@@ -103,7 +103,7 @@ export default function Animation({ participants, result, tariff, leg }) {
     return rows;
   }, [day, hourly, series, n]);
   const dayLeg = dayData.reduce((a, r) => a + r.leg, 0);
-  const daySaving = (dayLeg * (netzbezugPreis(tariff) - legBezugPreis(tariff, leg)) + dayLeg * (leg.preis - tariff.rueckliefer)) / 100;
+  const daySaving = (dayLeg * (netzbezugPreis(tariff) - legBezugPreis(tariff, leg)) + dayLeg * (leg.preis - result.summary.rlEffektiv)) / 100;
 
   // Geometrie
   const cols = Math.max(1, Math.ceil(n / 2));

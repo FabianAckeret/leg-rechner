@@ -15,7 +15,7 @@ const PAGES = [
 // Seiten, die über Links erreichbar sind, aber nicht in der Navigation stehen
 const HIDDEN = ['datenschutz'];
 const known = (h) => PAGES.some((p) => p.id === h) || HIDDEN.includes(h);
-const STORE = 'leg-rechner-v4'; // v4: IBB-Gebühren LEGPLUS 2026 ersetzen die alten Annahmen
+const STORE = 'leg-rechner-v5'; // v5: Abnahmevergütung IBB 2027 nach Leistung und Saison
 
 // Die Animation zeigt erfundene Beispielhäuser, nie echte Angaben
 const EXAMPLES = SAMPLE_PARTICIPANTS.map((p, i) => ({ ...p, name: `Haus ${String.fromCharCode(65 + i)}` }));

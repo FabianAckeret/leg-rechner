@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
     legJahr: round(s.legJahr, 10), initialkosten: round(s.initialkosten, 10), legGebuehrKwh: round(s.legGebuehrKwh, 10),
   };
   for (const k of kwhKeys) summary[k] = round(s[k], 1000);
+  summary.rlEffektiv = round(s.rlEffektiv, 0.1);
   summary.ersparnisBrutto = round(s.ersparnisBrutto, 10);
   summary.ersparnisNetto = round(s.ersparnisNetto, 10);
   summary.amortisationJahre = summary.ersparnisNetto > 0 ? summary.initialkosten / summary.ersparnisNetto : null as unknown as number;
